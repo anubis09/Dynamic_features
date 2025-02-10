@@ -1,0 +1,13 @@
+[project]
+name = "dynamic-features"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "autorom[accept-rom-license]>=0.6.1",
+    "gym[box2d]>=0.24.1",
+    "mushroom-rl[all]>=1.10.1",
+    "torch==2.4",
+    "wandb>=0.19.6",
+]
