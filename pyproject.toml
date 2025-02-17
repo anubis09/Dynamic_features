@@ -6,8 +6,14 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "autorom[accept-rom-license]>=0.6.1",
+    "experiment-launcher>=3.2",
     "gym[box2d]>=0.24.1",
     "mushroom-rl[all]>=1.10.1",
+    "numpy>=1.24.4",
+    "pytest>=8.3.4",
     "torch==2.4",
     "wandb>=0.19.6",
 ]
+
+[tool.pytest.ini_options]
+filterwarnings = ["ignore::DeprecationWarning"]

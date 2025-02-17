@@ -514,8 +514,11 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "autorom", extra = ["accept-rom-license"] },
+    { name = "experiment-launcher" },
     { name = "gym", extra = ["box2d"] },
     { name = "mushroom-rl", extra = ["all"] },
+    { name = "numpy" },
+    { name = "pytest" },
     { name = "torch" },
     { name = "wandb" },
 ]
@@ -523,8 +526,11 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "autorom", extras = ["accept-rom-license"], specifier = ">=0.6.1" },
+    { name = "experiment-launcher", specifier = ">=3.2" },
     { name = "gym", extras = ["box2d"], specifier = ">=0.24.1" },
     { name = "mushroom-rl", extras = ["all"], specifier = ">=1.10.1" },
+    { name = "numpy", specifier = ">=1.24.4" },
+    { name = "pytest", specifier = ">=8.3.4" },
     { name = "torch", specifier = "==2.4" },
     { name = "wandb", specifier = ">=0.19.6" },
 ]
@@ -562,6 +568,19 @@ sdist = { url = "https://files.pythonhosted.org/packages/09/35/2495c4ac46b980e4c
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/cc/b7e31358aac6ed1ef2bb790a9746ac2c69bcb3c8588b41616914eb106eaf/exceptiongroup-1.2.2-py3-none-any.whl", hash = "sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b", size = 16453 },
 ]
+
+[[package]]
+name = "experiment-launcher"
+version = "3.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "gitpython" },
+    { name = "joblib" },
+    { name = "numpy" },
+    { name = "pyyaml" },
+    { name = "wandb" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cf/4a/77106113ace1e6b4039bd314b6e71e56408e2caa38802730f78002611193/experiment_launcher-3.2.tar.gz", hash = "sha256:4b5a9023bcf5ef3e229436cc2c59e2b16222f9f883559e4696092bd115c04d41", size = 11668 }
 
 [[package]]
 name = "filelock"

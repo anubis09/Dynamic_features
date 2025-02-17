@@ -1,0 +1,16 @@
+Acrobot:
+  v_min: -500
+  v_max: -1
+  gamma: 0.99
+
+MountainCar:
+  v_min: -11_000
+  v_max: -1
+  horizon: .inf
+  gamma: 0.99
+
+LunarLander:
+  v_min: -1_000
+  v_max: 300
+  horizon: 1000
+  gamma: 0.99
