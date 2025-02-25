@@ -46,7 +46,11 @@ def launcher():
 
     for game in games:
         launcher.add_experiment(
-            config__=game, game_name=game, n_epochs=n_epochs, wandb_log=True
+            config__=game,
+            game_name=game,
+            n_epochs=n_epochs,
+            wandb_log=True,
+            wandb_job_type="DQN-final",
         )
 
     launcher.run(LOCAL, TEST)
