@@ -6,7 +6,6 @@ Acrobot:
 MountainCar:
   v_min: -11_000
   v_max: -1
-  horizon: .inf
   gamma: 0.99
 
 LunarLander:

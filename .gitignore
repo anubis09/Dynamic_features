@@ -1,3 +1,5 @@
-*/__pycache__
-*/.ropeproject
-*/pytest_cache
+*__pycache__
+*.ropeproject
+*pytest_cache
+*logs
+*wandb
