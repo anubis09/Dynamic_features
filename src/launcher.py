@@ -42,7 +42,8 @@ def launcher():
     )
 
     games = ["Acrobot-v1", "MountainCar-v0", "LunarLander-v2"]
-    n_epochs = 2
+    n_epochs = 100
+    # TODO: the launcher should take as input the n_epochs and the wandb_log so that I can test it easily.
 
     for game in games:
         launcher.add_experiment(
