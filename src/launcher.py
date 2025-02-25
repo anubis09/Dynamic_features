@@ -6,7 +6,7 @@ LOCAL = is_local()
 TEST = False
 USE_CUDA = True
 
-N_SEEDS = 10
+N_SEEDS = 20
 
 if LOCAL:
     N_EXPS_IN_PARALLEL = 3
