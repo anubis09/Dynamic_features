@@ -4,7 +4,7 @@ from experiment_launcher import Launcher, is_local
 
 LOCAL = is_local()
 TEST = False
-USE_CUDA = False
+USE_CUDA = True
 
 N_SEEDS = 10
 
@@ -17,8 +17,7 @@ N_CORES = N_EXPS_IN_PARALLEL
 MEMORY_SINGLE_JOB = 1000
 MEMORY_PER_CORE = N_EXPS_IN_PARALLEL * MEMORY_SINGLE_JOB // N_CORES
 PARTITION = "stud"  # 'amd', 'rtx'
-# GRES = "gpu:1" if USE_CUDA else None  # gpu:rtx2080:1, gpu:rtx3080:1
-GRES = None
+GRES = "gpu:1" if USE_CUDA else None  # gpu:rtx2080:1, gpu:rtx3080:1
 CONDA_ENV = ".env" if "CONDA_PREFIX" in os.environ else None
 
 
