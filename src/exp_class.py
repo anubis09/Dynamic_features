@@ -2,12 +2,13 @@ import os
 from abc import ABC, abstractmethod
 
 import numpy as np
-import wandb
 import yaml
 from mushroom_rl.core import Core
 from mushroom_rl.environments import Gym
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import Parameter
+
+import wandb
 
 
 class AbstractExp(ABC):
@@ -18,13 +19,19 @@ class AbstractExp(ABC):
         self.__get_mdp(mdp_name)
 
     def set_wandb(self) -> None:
-        with open(os.path.join("src", "configs", "wandb_conf.yaml"), "r") as f:
+        starting_folder = "src" if "src" in os.listdir() else "."
+        with open(
+            os.path.join(starting_folder, "configs", "wandb_conf.yaml"), "r"
+        ) as f:
             self.wandb_obj = yaml.load(f, yaml.Loader)
 
     def __get_mdp(self, mdp_name: str) -> None:
         if "-" in mdp_name:
             game_name = mdp_name.split("-")[0]
-            with open(os.path.join("src", "configs", "game_env_conf.yaml"), "r") as f:
+            starting_folder = "src" if "src" in os.listdir() else "."
+            with open(
+                os.path.join(starting_folder, "configs", "game_env_conf.yaml"), "r"
+            ) as f:
                 game_config = yaml.load(f, yaml.Loader)[game_name]
             self.gamma = game_config["gamma"]
             # TODO: Once I will have unified the horizon everywhere, I will have

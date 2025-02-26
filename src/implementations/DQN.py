@@ -100,7 +100,10 @@ def experiment(
     dqn_exp_class = DQN_exp(
         game_name=game_name,
     )
-    with open(os.path.join("src", "configs", "algorithms_conf.yaml"), "r") as f:
+    starting_folder = "src" if "src" in os.listdir() else "."
+    with open(
+        os.path.join(starting_folder, "configs", "algorithms_conf.yaml"), "r"
+    ) as f:
         params = yaml.load(f, yaml.Loader)["DQN"]
 
     dqn_exp_class.create_policy(**params["policy"])

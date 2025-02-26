@@ -6,10 +6,10 @@ LOCAL = is_local()
 TEST = False
 USE_CUDA = True
 
-N_SEEDS = 5
+N_SEEDS = 20
 
 if LOCAL:
-    N_EXPS_IN_PARALLEL = 3
+    N_EXPS_IN_PARALLEL = 5
 else:
     N_EXPS_IN_PARALLEL = 5
 
@@ -42,7 +42,7 @@ def launcher():
     )
 
     games = ["Acrobot-v1", "MountainCar-v0", "LunarLander-v2"]
-    n_epochs = 5
+    n_epochs = 100
     # TODO: the launcher should take as input the n_epochs and the wandb_log so that I can test it easily.
 
     for game in games:
