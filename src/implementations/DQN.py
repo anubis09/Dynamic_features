@@ -4,7 +4,7 @@ import sys
 import torch.nn.functional as F
 import torch.optim as optim
 import yaml
-from experiment_launcher import single_experiment
+from experiment_launcher import run_experiment, single_experiment
 from mushroom_rl.algorithms.value import DQN
 from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom_rl.policy import EpsGreedy
@@ -104,6 +104,7 @@ def experiment(
         params = yaml.load(f, yaml.Loader)["DQN"]
 
     dqn_exp_class.create_policy(**params["policy"])
+
     dqn_exp_class.create_agent(**params["agent"])
 
     dqn_exp_class.create_core()
@@ -117,3 +118,7 @@ def experiment(
         dqn_exp_class.wandb_obj["config"]["n_epochs"] = n_epochs
 
     dqn_exp_class.train(n_epochs=n_epochs, **params["train"])
+
+
+if __name__ == "__main__":
+    run_experiment(experiment)

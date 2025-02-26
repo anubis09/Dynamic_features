@@ -6,12 +6,12 @@ LOCAL = is_local()
 TEST = False
 USE_CUDA = True
 
-N_SEEDS = 20
+N_SEEDS = 5
 
 if LOCAL:
     N_EXPS_IN_PARALLEL = 3
 else:
-    N_EXPS_IN_PARALLEL = 3
+    N_EXPS_IN_PARALLEL = 5
 
 N_CORES = N_EXPS_IN_PARALLEL
 MEMORY_SINGLE_JOB = 1000
@@ -35,13 +35,14 @@ def launcher():
         minutes=59,
         seconds=0,
         partition=PARTITION,
+        conda_env=CONDA_ENV,
         gres=GRES,
         use_timestamp=True,
         compact_dirs=False,
     )
 
     games = ["Acrobot-v1", "MountainCar-v0", "LunarLander-v2"]
-    n_epochs = 100
+    n_epochs = 5
     # TODO: the launcher should take as input the n_epochs and the wandb_log so that I can test it easily.
 
     for game in games:
