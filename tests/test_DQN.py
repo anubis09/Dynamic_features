@@ -3,7 +3,7 @@ import sys
 
 import yaml
 
-sys.path.append("src")
+sys.path.append("src/")
 
 from src.implementations.DQN import DQN_exp
 from src.launcher import launcher
