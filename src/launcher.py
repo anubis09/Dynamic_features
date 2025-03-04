@@ -4,9 +4,9 @@ from experiment_launcher import Launcher, is_local
 
 LOCAL = is_local()
 TEST = False
-USE_CUDA = True
+USE_CUDA = False
 
-N_SEEDS = 3
+N_SEEDS = 20
 
 if LOCAL:
     N_EXPS_IN_PARALLEL = 5
@@ -23,7 +23,7 @@ CONDA_ENV = ".venv" if "CONDA_PREFIX" in os.environ else None
 
 def launcher():
     launcher = Launcher(
-        exp_name="test_launcher",
+        exp_name="DQN",
         exp_file="implementations.DQN",
         # project_name='project01234',  # for hrz cluster
         n_seeds=N_SEEDS,
