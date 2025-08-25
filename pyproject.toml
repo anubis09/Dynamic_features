@@ -11,8 +11,6 @@ requires-python = "~=3.8.0"
 dependencies = [
     "autorom[accept-rom-license]>=0.6.1",
     "gym[box2d]>=0.24.1",
-    "jaxtyping>=0.2.19",
-    "mlx>=0.18.1",
     "mushroom-rl[all]>=1.10.1",
     "numpy>=1.24.4",
     "torch==2.4",

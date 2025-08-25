@@ -1,12 +1,13 @@
 from typing import Optional
 
+import torch
 import torch.nn.functional as F
-import torch.optim as optim
 import yaml
 from mushroom_rl.algorithms.value import DQN
 from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
+from torch.optim.adam import Adam
 
 from dynamic_features import ALGORITHMS_CONFIG_PATH
 from dynamic_features.exp_class import AbstractExp
@@ -17,11 +18,12 @@ class DQN_exp(AbstractExp):
     __slots__ = ["initial_replay_size", "max_replay_size"]
 
     def __init__(self, game_name: str, seed: Optional[int]):
+        torch.manual_seed(seed)
         super().__init__(game_name, seed)
 
     def create_policy(self, initial_exp_rate: float, final_exp_rate: float, final_exp_frame: int):
         # initializing epsilon for the epsilon greedy exploration
-        self.epsilon = LinearParameter(
+        self.exploration_policy_param = LinearParameter(
             value=initial_exp_rate,
             threshold_value=final_exp_rate,
             n=final_exp_frame,
@@ -48,7 +50,7 @@ class DQN_exp(AbstractExp):
         input_shape = self.mdp.info.observation_space.shape
         approximator_params = dict(
             network=Linear,
-            optimizer={"class": optim.Adam, "params": {"lr": learning_rate}},  # type: ignore
+            optimizer={"class": Adam, "params": {"lr": learning_rate}},
             loss=loss,
             n_features=n_features,
             input_shape=input_shape,
@@ -72,7 +74,7 @@ class DQN_exp(AbstractExp):
         self,
         n_steps: int,
         test_samples: int,
-        eval_exploration_param: Parameter,
+        eval_policy_param: Parameter,
         train_frequency: int = 1,
         n_epochs: int = 100,
         use_wandb: bool = False,
@@ -82,7 +84,7 @@ class DQN_exp(AbstractExp):
         return super().train(
             n_steps=n_steps,
             test_samples=test_samples,
-            eval_exploration_param=eval_exploration_param,
+            eval_policy_param=eval_policy_param,
             train_frequency=train_frequency,
             n_epochs=n_epochs,
             use_wandb=use_wandb,
@@ -97,9 +99,11 @@ def experiment(
     wandb_job_type: str = "",
     **kwargs,
 ):
-    dqn_exp_class = DQN_exp(game_name=game_name, seed=42)
+    dqn_exp_class = DQN_exp(game_name=game_name, seed=seed)
     with open(ALGORITHMS_CONFIG_PATH, "r") as f:
         params = yaml.load(f, yaml.Loader)["DQN"]
+
+    params["train"].update(n_epochs=n_epochs)
 
     dqn_exp_class.create_policy(**params["policy"])
 
@@ -108,14 +112,15 @@ def experiment(
     dqn_exp_class.create_core()
 
     if wandb_log:
-        dqn_exp_class._wandb_conf["name"] = f"seed_{seed}"
-        dqn_exp_class._wandb_conf["job_type"] = wandb_job_type
-        dqn_exp_class._wandb_conf["group"] = game_name
-        dqn_exp_class._wandb_conf["config"] = params
-        dqn_exp_class._wandb_conf["config"]["n_epochs"] = n_epochs
+        dqn_exp_class.update_wandb_conf(
+            name=f"seed_{seed}",
+            job_type=wandb_job_type,
+            group=game_name,
+            config=params,
+        )
 
-    dqn_exp_class.train(n_epochs=n_epochs, **params["train"])
+    dqn_exp_class.train(**params["train"], use_wandb=wandb_log)
 
 
 if __name__ == "__main__":
-    experiment()
+    experiment(seed=100, n_epochs=2, wandb_log=False)

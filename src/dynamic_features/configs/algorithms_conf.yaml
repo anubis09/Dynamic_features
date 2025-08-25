@@ -14,5 +14,5 @@ DQN:
   train:
     n_steps: 20_000
     test_samples: 10_000
-    eval_exploration_param: 0
+    eval_policy_param: 0
     train_frequency: 1

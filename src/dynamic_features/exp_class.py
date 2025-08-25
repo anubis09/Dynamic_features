@@ -3,18 +3,28 @@ from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
 import numpy as np
-import wandb
 import yaml
 from mushroom_rl.core import Core
 from mushroom_rl.environments import Gym
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import Parameter
 
+import wandb
 from dynamic_features import GAME_ENV_CONFIG_PATH, WANDB_CONFIG_PATH
 
 
 class AbstractExp(ABC):
-    __slots__ = ["mdp", "gamma", "epsilon", "policy", "agent", "core", "seed", "_wandb_conf", "_logger"]
+    __slots__ = [
+        "mdp",
+        "gamma",
+        "exploration_policy_param",
+        "policy",
+        "agent",
+        "core",
+        "seed",
+        "_wandb_conf",
+        "_logger",
+    ]
 
     def __init__(self, mdp_name: str, seed: Optional[int]) -> None:
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -27,10 +37,16 @@ class AbstractExp(ABC):
         """Initialize wandb configuration from config file."""
         try:
             with open(WANDB_CONFIG_PATH, "r") as f:
-                self._wandb_conf = yaml.load(f, yaml.Loader)
+                self._wandb_conf = yaml.load(f, yaml.SafeLoader)
         except Exception as e:
             self._logger.warning(f"Failed to load wandb config: {e}")
             self._wandb_conf = {}
+
+    def update_wandb_conf(self, **kwargs) -> None:
+        """Update configs for wandb"""
+        if kwargs:
+            self._logger.debug(f"Updating wandb config with: {list(kwargs.keys())}")
+        self._wandb_conf.update(kwargs)
 
     def _setup_mdp(self, mdp_name: str) -> None:
         """Initialize the MDP environment from configuration."""
@@ -39,13 +55,14 @@ class AbstractExp(ABC):
 
         game_name = mdp_name.split("-")[0]
         with open(GAME_ENV_CONFIG_PATH, "r") as f:
-            game_config = yaml.load(f, yaml.Loader).get(game_name, None)
+            game_config = yaml.load(f, yaml.SafeLoader).get(game_name, None)
         if game_config is None:
             raise ConfigurationError(f"Game '{game_name}' not found in config.")
         self.gamma = game_config.get("gamma")
         horizon = game_config.get("horizon", None)
         try:
             self.mdp = Gym(mdp_name, horizon=horizon, gamma=self.gamma)  # Use full mdp_name
+            self.mdp.seed(self.seed)
             self._logger.info(f"Initialized MDP: {mdp_name} with gamma={self.gamma}")
         except Exception as e:
             raise ConfigurationError(f"Failed to create environment '{mdp_name}': {e}")
@@ -76,8 +93,8 @@ class AbstractExp(ABC):
         self.core = Core(agent=self.agent, mdp=self.mdp)
         self._logger.info("Core initialized successfully")
 
-    def _set_exploration_parameter(self, param: Parameter) -> None:
-        """Set exploration parameter (epsilon or beta) based on policy type."""
+    def _configure_policy_exploration_behavior(self, param: Parameter) -> None:
+        """Configure policy behavior based on parameter value."""
         if not hasattr(self, "policy"):
             raise ExperimentError("Policy not initialized")
 
@@ -92,10 +109,10 @@ class AbstractExp(ABC):
         self,
         n_steps: int,
         test_samples: int,
-        eval_exploration_param: Parameter,
+        eval_policy_param: Parameter,
         train_frequency: int = 1,
         n_epochs: int = 100,
-        use_wandb: bool = True,
+        use_wandb: bool = False,
     ) -> None:
         """
         Train the agent with periodic evaluation.
@@ -119,7 +136,7 @@ class AbstractExp(ABC):
         J_list = []
         dJ_list = []
 
-        initial_J, initial_dJ = self._evaluate(test_samples, eval_exploration_param)
+        initial_J, initial_dJ = self._evaluate(test_samples, eval_policy_param)
         J_list.append(initial_J)
         dJ_list.append(initial_dJ)
 
@@ -130,11 +147,11 @@ class AbstractExp(ABC):
 
         for epoch in range(1, n_epochs + 1):
             # Learning step
-            self._set_exploration_parameter(self.epsilon)
+            self._configure_policy_exploration_behavior(self.exploration_policy_param)
             self.core.learn(n_steps=n_steps, n_steps_per_fit=train_frequency)
 
             # Evaluation step
-            J_curr, dJ_curr = self._evaluate(test_samples, eval_exploration_param)
+            J_curr, dJ_curr = self._evaluate(test_samples, eval_policy_param)
             J_list.append(J_curr)
             dJ_list.append(dJ_curr)
             if wandb_active:
@@ -149,7 +166,7 @@ class AbstractExp(ABC):
         """Evaluate the current policy and return average returns."""
 
         # Set deterministic policy for evaluation
-        self._set_exploration_parameter(eval_exploration_param)
+        self._configure_policy_exploration_behavior(eval_exploration_param)
 
         dataset = self.core.evaluate(n_steps=test_samples, render=False)
 

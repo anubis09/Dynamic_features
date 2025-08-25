@@ -250,8 +250,6 @@ source = { editable = "." }
 dependencies = [
     { name = "autorom", extra = ["accept-rom-license"] },
     { name = "gym", extra = ["box2d"] },
-    { name = "jaxtyping" },
-    { name = "mlx" },
     { name = "mushroom-rl", extra = ["all"] },
     { name = "numpy" },
     { name = "torch" },
@@ -267,8 +265,6 @@ dev = [
 requires-dist = [
     { name = "autorom", extras = ["accept-rom-license"], specifier = ">=0.6.1" },
     { name = "gym", extras = ["box2d"], specifier = ">=0.24.1" },
-    { name = "jaxtyping", specifier = ">=0.2.19" },
-    { name = "mlx", specifier = ">=0.18.1" },
     { name = "mushroom-rl", extras = ["all"], specifier = ">=1.10.1" },
     { name = "numpy", specifier = ">=1.24.4" },
     { name = "torch", specifier = "==2.4" },
@@ -457,20 +453,6 @@ wheels = [
 ]
 
 [[package]]
-name = "jaxtyping"
-version = "0.2.19"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy" },
-    { name = "typeguard" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/6b/9f/1f8b63965b795803c5bc38afcfcf8ce8d922ffc65a26d4a08071279b0403/jaxtyping-0.2.19.tar.gz", hash = "sha256:21ff4c3caec6781cadfe980b019dde856c1011e17d11dfe8589298040056325a", size = 16653 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7f/8f/b39d40fef81d7def4898ad11bbe686185e09cb9e39db905e2afc77f1d350/jaxtyping-0.2.19-py3-none-any.whl", hash = "sha256:651352032799d422987e783fd1b77699b53c3bb28ffa644bbca5f75ec4fbb843", size = 24145 },
-]
-
-[[package]]
 name = "jinja2"
 version = "3.1.5"
 source = { registry = "https://pypi.org/simple" }
@@ -610,15 +592,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b2/36/66cfea213e9ba91cda9e257542c249ed235d49021af71c2e8007107d7d4c/matplotlib-3.7.5-pp38-pypy38_pp73-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:b9b3fd853d4a7f008a938df909b96db0b454225f935d3917520305b90680579c", size = 7552612 },
     { url = "https://files.pythonhosted.org/packages/77/df/16655199bf984c37c6a816b854bc032b56aef521aadc04f27928422f3c91/matplotlib-3.7.5-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f0ad550da9f160737d7890217c5eeed4337d07e83ca1b2ca6535078f354e7675", size = 7515564 },
     { url = "https://files.pythonhosted.org/packages/5b/c8/3534c3705a677b71abb6be33609ba129fdeae2ea4e76b2fd3ab62c86fab3/matplotlib-3.7.5-pp38-pypy38_pp73-win_amd64.whl", hash = "sha256:20da7924a08306a861b3f2d1da0d1aa9a6678e480cf8eacffe18b565af2813e7", size = 7521336 },
-]
-
-[[package]]
-name = "mlx"
-version = "0.18.1"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/c8/ce2a074059a633d52bf4057246b9e9157f7b3ac6d05ab0f0d6dfa8348ad1/mlx-0.18.1-cp38-cp38-macosx_13_0_arm64.whl", hash = "sha256:d0b4bee7278a3c358c60799ec4571f019e444ff9de8352c804724fd6caadabb9", size = 22043670 },
-    { url = "https://files.pythonhosted.org/packages/a8/30/f9c0bb894ce6705b2b888773e2da28628cb910bfb2cacd7a8bcde1ec6e42/mlx-0.18.1-cp38-cp38-macosx_14_0_arm64.whl", hash = "sha256:96bb83c07586e76990abd41c0d01502d986d88a7e63828a38c5a6f4808dbd923", size = 21298947 },
 ]
 
 [[package]]
@@ -1255,19 +1228,6 @@ dependencies = [
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4d/b4/c37e2776a1390bab7e78a6d52bd525441cb3cad7260a6a00b11b0b702e7c/triton-3.0.0-1-cp38-cp38-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:bcbf3b1c48af6a28011a5c40a5b3b9b5330530c3827716b5fbf6d7adcc1e53e9", size = 209352266 },
-]
-
-[[package]]
-name = "typeguard"
-version = "4.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "importlib-metadata", marker = "python_full_version == '3.8.*'" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/79/5a/91b7c8cfc2e96962442abc9d65c650436dd831910b4d7878980d6596fb98/typeguard-4.4.0.tar.gz", hash = "sha256:463bd8697a65a4aa576a63767c369b1ecfba8a5ba735edfe3223127b6ecfa28c", size = 74399 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/a3/00203767544b597a9e3c57b29a84967b3230f00bdd9aa6a52a73187043b4/typeguard-4.4.0-py3-none-any.whl", hash = "sha256:8ca34c14043f53b2caae7040549ba431770869bcd6287cfa8239db7ecb882b4a", size = 35736 },
 ]
 
 [[package]]
