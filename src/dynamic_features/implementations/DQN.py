@@ -2,14 +2,12 @@ from typing import Optional
 
 import torch
 import torch.nn.functional as F
-import yaml
 from mushroom_rl.algorithms.value import DQN
 from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
 from torch.optim.adam import Adam
 
-from dynamic_features import ALGORITHMS_CONFIG_PATH
 from dynamic_features.exp_class import AbstractExp
 from dynamic_features.models.Linear import Linear
 
@@ -89,38 +87,3 @@ class DQN_exp(AbstractExp):
             n_epochs=n_epochs,
             use_wandb=use_wandb,
         )
-
-
-def experiment(
-    game_name: str = "MountainCar-v0",
-    seed: int = 0,
-    n_epochs: int = 2,
-    wandb_log: bool = False,
-    wandb_job_type: str = "",
-    **kwargs,
-):
-    dqn_exp_class = DQN_exp(game_name=game_name, seed=seed)
-    with open(ALGORITHMS_CONFIG_PATH, "r") as f:
-        params = yaml.load(f, yaml.Loader)["DQN"]
-
-    params["train"].update(n_epochs=n_epochs)
-
-    dqn_exp_class.create_policy(**params["policy"])
-
-    dqn_exp_class.create_agent(**params["agent"])
-
-    dqn_exp_class.create_core()
-
-    if wandb_log:
-        dqn_exp_class.update_wandb_conf(
-            name=f"seed_{seed}",
-            job_type=wandb_job_type,
-            group=game_name,
-            config=params,
-        )
-
-    dqn_exp_class.train(**params["train"], use_wandb=wandb_log)
-
-
-if __name__ == "__main__":
-    experiment(seed=100, n_epochs=2, wandb_log=False)
