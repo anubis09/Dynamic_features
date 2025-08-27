@@ -1,0 +1,8 @@
+name: "MountainCar-v0"
+
+core:
+  gamma: 0.99
+
+rainbow:
+v_min: -11_000
+v_max: -1

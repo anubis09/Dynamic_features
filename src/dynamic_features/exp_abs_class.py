@@ -3,14 +3,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
 import numpy as np
-import yaml
+import wandb
 from mushroom_rl.core import Core
 from mushroom_rl.environments import Gym
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import Parameter
-
-import wandb
-from dynamic_features import GAME_ENV_CONFIG_PATH, WANDB_CONFIG_PATH
 
 
 class AbstractExp(ABC):
@@ -26,21 +23,12 @@ class AbstractExp(ABC):
         "_logger",
     ]
 
-    def __init__(self, mdp_name: str, seed: Optional[int]) -> None:
+    def __init__(self, seed: Optional[int]) -> None:
         self._logger = logging.getLogger(self.__class__.__name__)
+        self._logger.setLevel(logging.DEBUG)
         self.seed = seed
         np.random.seed(seed)
-        self._setup_wandb()
-        self._setup_mdp(mdp_name)
-
-    def _setup_wandb(self) -> None:
-        """Initialize wandb configuration from config file."""
-        try:
-            with open(WANDB_CONFIG_PATH, "r") as f:
-                self._wandb_conf = yaml.load(f, yaml.SafeLoader)
-        except Exception as e:
-            self._logger.warning(f"Failed to load wandb config: {e}")
-            self._wandb_conf = {}
+        self._wandb_conf = {}
 
     def update_wandb_conf(self, **kwargs) -> None:
         """Update configs for wandb"""
@@ -48,18 +36,11 @@ class AbstractExp(ABC):
             self._logger.debug(f"Updating wandb config with: {list(kwargs.keys())}")
         self._wandb_conf.update(kwargs)
 
-    def _setup_mdp(self, mdp_name: str) -> None:
+    def create_mdp(self, mdp_name: str, gamma: float, horizon: Optional[float] = None) -> None:
         """Initialize the MDP environment from configuration."""
         if "-" not in mdp_name:
             raise ConfigurationError(f"The following mdp ({mdp_name}) is not supported.")
-
-        game_name = mdp_name.split("-")[0]
-        with open(GAME_ENV_CONFIG_PATH, "r") as f:
-            game_config = yaml.load(f, yaml.SafeLoader).get(game_name, None)
-        if game_config is None:
-            raise ConfigurationError(f"Game '{game_name}' not found in config.")
-        self.gamma = game_config.get("gamma")
-        horizon = game_config.get("horizon", None)
+        self.gamma = gamma
         try:
             self.mdp = Gym(mdp_name, horizon=horizon, gamma=self.gamma)  # Use full mdp_name
             self.mdp.seed(self.seed)
@@ -88,6 +69,8 @@ class AbstractExp(ABC):
 
     def create_core(self):
         """Create the MushroomRL Core object."""
+        if not hasattr(self, "mdp"):
+            raise ExperimentError("Mdp must be created before core. Call create_mdp() first.")
         if not hasattr(self, "agent"):
             raise ExperimentError("Agent must be created before core. Call create_agent() first.")
         self.core = Core(agent=self.agent, mdp=self.mdp)

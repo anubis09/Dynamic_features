@@ -8,16 +8,16 @@ from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
 from torch.optim.adam import Adam
 
-from dynamic_features.exp_class import AbstractExp
+from dynamic_features.exp_abs_class import AbstractExp
 from dynamic_features.models.Linear import Linear
 
 
 class DQN_exp(AbstractExp):
     __slots__ = ["initial_replay_size", "max_replay_size"]
 
-    def __init__(self, game_name: str, seed: Optional[int]):
+    def __init__(self, seed: Optional[int]):
         torch.manual_seed(seed)
-        super().__init__(game_name, seed)
+        super().__init__(seed=seed)
 
     def create_policy(self, initial_exp_rate: float, final_exp_rate: float, final_exp_frame: int):
         # initializing epsilon for the epsilon greedy exploration

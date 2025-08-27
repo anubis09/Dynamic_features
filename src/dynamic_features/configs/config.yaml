@@ -1,0 +1,14 @@
+defaults:
+  - algorithm: DQN
+  - environment: MountainCar
+  - _self_
+
+wandb_log: True
+seed: 42
+
+wandb:
+  project: "Dynamic_Features"
+  entity: "Dynamic_Tiles_Thesis"
+  job_type: ""
+  group: ${..environment.name}
+  name: seed_${..seed}
