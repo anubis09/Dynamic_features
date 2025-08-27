@@ -2,14 +2,14 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from dynamic_features import CONFIGS_PATH
-from dynamic_features.algorithms.DQN import DQN_exp
+from dynamic_features.algorithms.dqn import DQN
 
 
 @hydra.main(version_base=None, config_path=str(CONFIGS_PATH), config_name="config")
 def experiment(
     cfg: DictConfig,
 ):
-    dqn_exp_class = DQN_exp(seed=cfg.seed)
+    dqn_exp_class = DQN(seed=cfg.seed)
 
     dqn_exp_class.create_mdp(mdp_name=cfg.environment.name, **cfg.environment.core)
 

@@ -10,7 +10,7 @@ from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import Parameter
 
 
-class AbstractExp(ABC):
+class AbstractAlg(ABC):
     __slots__ = [
         "mdp",
         "gamma",

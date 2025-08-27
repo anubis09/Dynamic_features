@@ -1,5 +1,5 @@
 defaults:
-  - algorithm: DQN
+  - algorithm: dqn
   - environment: MountainCar
   - _self_
 
