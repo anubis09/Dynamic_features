@@ -1,6 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from dataclasses import asdict
+from typing import Generic, Optional, Tuple
 
 import numpy as np
 import wandb
@@ -9,65 +10,80 @@ from mushroom_rl.environments import Gym
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import Parameter
 
+from dynamic_features.configs.algorithm.algorithm_conf import PolicyConfig, TAgentConfig, TrainingConfig
+from dynamic_features.configs.env_config import EnvConfig
+from dynamic_features.configs.wandb_config import WandbConfig
 
-class AbstractAlg(ABC):
+
+# Putting here Generic[TAgentConfig] allows the class to be generic over the type of agent configuration
+# A subclass of AbstractAlgorith can use a specific subclass of AgentConfig without getting lsp errors.
+class AbstractAlg(ABC, Generic[TAgentConfig]):
     __slots__ = [
         "mdp",
+        "_mdp_config",
         "gamma",
         "exploration_policy_param",
         "policy",
+        "_policy_config",
         "agent",
+        "_agent_config",
         "core",
+        "_training_config",
         "seed",
         "_wandb_conf",
         "_logger",
     ]
 
-    def __init__(self, seed: Optional[int]) -> None:
+    def __init__(
+        self,
+        policy: PolicyConfig,
+        agent: TAgentConfig,
+        train: TrainingConfig,
+        env: EnvConfig,
+        wandb: WandbConfig,
+        seed: Optional[int],
+    ) -> None:
         self._logger = logging.getLogger(self.__class__.__name__)
         self._logger.setLevel(logging.DEBUG)
         self.seed = seed
         np.random.seed(seed)
-        self._wandb_conf = {}
+        self._mdp_config = env
+        self._create_mdp()
+        self._policy_config = policy
+        self._create_policy()
+        self._agent_config = agent
+        self._create_agent()
+        self._create_core()
+        self._training_config = train
+        self._wandb_conf = {
+            **asdict(wandb),
+            "config": {**asdict(agent), **asdict(policy), **asdict(train), **asdict(env)},
+        }
 
-    def update_wandb_conf(self, **kwargs) -> None:
-        """Update configs for wandb"""
-        if kwargs:
-            self._logger.debug(f"Updating wandb config with: {list(kwargs.keys())}")
-        self._wandb_conf.update(kwargs)
-
-    def create_mdp(self, mdp_name: str, gamma: float, horizon: Optional[float] = None) -> None:
+    def _create_mdp(self) -> None:
         """Initialize the MDP environment from configuration."""
+        mdp_name = self._mdp_config.name
         if "-" not in mdp_name:
             raise ConfigurationError(f"The following mdp ({mdp_name}) is not supported.")
-        self.gamma = gamma
+        self.gamma = self._mdp_config.core.gamma
         try:
-            self.mdp = Gym(mdp_name, horizon=horizon, gamma=self.gamma)  # Use full mdp_name
+            self.mdp = Gym(mdp_name, horizon=self._mdp_config.core.horizon, gamma=self.gamma)
             self.mdp.seed(self.seed)
-            self._logger.info(f"Initialized MDP: {mdp_name} with gamma={self.gamma}")
+            self._logger.info(f"initialized mdp: {mdp_name} with gamma={self.gamma}")
         except Exception as e:
             raise ConfigurationError(f"Failed to create environment '{mdp_name}': {e}")
 
     @abstractmethod
-    def create_policy(self, initial_exp_rate: float, final_exp_rate: float, final_exp_frame: int) -> None:
+    def _create_policy(self) -> None:
         """Create the policy for the agent."""
         pass
 
     @abstractmethod
-    def create_agent(
-        self,
-        learning_rate: float,
-        n_features: int,
-        batch_size: int,
-        initial_replay_size: int,
-        max_replay_size: int,
-        target_update_frequency: int,
-        loss_name: str,
-    ) -> None:
+    def _create_agent(self) -> None:
         """Create the RL agent."""
         pass
 
-    def create_core(self):
+    def _create_core(self):
         """Create the MushroomRL Core object."""
         if not hasattr(self, "mdp"):
             raise ExperimentError("Mdp must be created before core. Call create_mdp() first.")
@@ -90,21 +106,11 @@ class AbstractAlg(ABC):
 
     def train(
         self,
-        n_steps: int,
-        test_samples: int,
-        eval_policy_param: Parameter,
-        train_frequency: int = 1,
-        n_epochs: int = 100,
         use_wandb: bool = False,
     ) -> None:
         """
         Train the agent with periodic evaluation.
         """
-        if not hasattr(self, "core"):
-            raise ExperimentError("core is not initalized.")
-
-        if not hasattr(self, "policy"):
-            raise ExperimentError("Policy not initialized. Call create_policy() first.")
 
         # Initialize wandb if requested and configured
         wandb_active = use_wandb and self._wandb_conf
@@ -119,6 +125,9 @@ class AbstractAlg(ABC):
         J_list = []
         dJ_list = []
 
+        eval_policy_param = Parameter(self._training_config.eval_policy_param)
+        test_samples = self._training_config.test_samples
+
         initial_J, initial_dJ = self._evaluate(test_samples, eval_policy_param)
         J_list.append(initial_J)
         dJ_list.append(initial_dJ)
@@ -126,7 +135,13 @@ class AbstractAlg(ABC):
         if wandb_active:
             self._log_to_wandb(J=initial_J, dJ=initial_dJ, step=0)
 
-        self._logger.info(f"Starting training: {n_epochs} epochs, {n_steps} steps per epoch")
+        n_epochs = self._training_config.n_epochs
+        n_steps = self._training_config.n_steps
+        train_frequency = self._training_config.train_frequency
+
+        self._logger.info(
+            f"Starting training: {n_epochs} epochs, {n_steps} steps per epoch and {train_frequency} steps per fit"
+        )
 
         for epoch in range(1, n_epochs + 1):
             # Learning step

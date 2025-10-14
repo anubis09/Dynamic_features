@@ -1,8 +1,0 @@
-name: "Acrobot-v1"
-
-core:
-  gamma: 0.99
-
-rainbow:
-  v_min: -500
-  v_max: -1

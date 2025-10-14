@@ -1,9 +1,0 @@
-name: "LunarLander-v2"
-
-core:
-  horizon: 1000
-  gamma: 0.99
-
-rainbow:
-  v_min: -1_000
-  v_max: 300

@@ -8,49 +8,52 @@ from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
 from torch.optim.adam import Adam
 
-from dynamic_features.exp_abs_class import AbstractExp
+from dynamic_features.algorithms.abc_algorithm import AbstractAlg
+from dynamic_features.configs.algorithm.algorithm_conf import PolicyConfig, TrainingConfig
+from dynamic_features.configs.algorithm.dqn import DqnAgentConfig
+from dynamic_features.configs.env_config import EnvConfig
+from dynamic_features.configs.wandb_config import WandbConfig
 from dynamic_features.models.Linear import Linear
 
 
-class DQN_exp(AbstractExp):
+class DQN_exp(AbstractAlg[DqnAgentConfig]):
     __slots__ = ["initial_replay_size", "max_replay_size"]
 
-    def __init__(self, seed: Optional[int]):
+    def __init__(
+        self,
+        policy: PolicyConfig,
+        agent: DqnAgentConfig,
+        train: TrainingConfig,
+        env: EnvConfig,
+        wandb: WandbConfig,
+        seed: Optional[int],
+    ):
         torch.manual_seed(seed)
-        super().__init__(seed=seed)
+        super().__init__(policy=policy, agent=agent, train=train, env=env, wandb=wandb, seed=seed)
 
-    def create_policy(self, initial_exp_rate: float, final_exp_rate: float, final_exp_frame: int):
+    def _create_policy(self):
         # initializing epsilon for the epsilon greedy exploration
         self.exploration_policy_param = LinearParameter(
-            value=initial_exp_rate,
-            threshold_value=final_exp_rate,
-            n=final_exp_frame,
+            value=self._policy_config.initial_exp_rate,
+            threshold_value=self._policy_config.final_exp_rate,
+            n=self._policy_config.final_exp_frame,
         )
         # in DQN we start with a random epsilon
         epsilon_random = Parameter(value=1.0)
         self.policy = EpsGreedy(epsilon=epsilon_random)
 
-    def create_agent(
-        self,
-        learning_rate: float,
-        n_features: int,
-        batch_size: int,
-        initial_replay_size: int,
-        max_replay_size: int,
-        target_update_frequency: int,
-        loss_name: str = "mse_loss",
-    ):
-        self.initial_replay_size = initial_replay_size
-        self.max_replay_size = max_replay_size
-        loss = F.smooth_l1_loss if loss_name == "smooth_l1_loss" else F.mse_loss
+    def _create_agent(self):
+        self.initial_replay_size = self._agent_config.initial_replay_size
+        self.max_replay_size = self._agent_config.max_replay_size
+        loss = F.smooth_l1_loss if self._agent_config.loss_name == "smooth_l1_loss" else F.mse_loss
 
         # Approximator
         input_shape = self.mdp.info.observation_space.shape
         approximator_params = dict(
             network=Linear,
-            optimizer={"class": Adam, "params": {"lr": learning_rate}},
+            optimizer={"class": Adam, "params": {"lr": self._agent_config.learning_rate}},
             loss=loss,
-            n_features=n_features,
+            n_features=self._agent_config.n_features,
             input_shape=input_shape,
             output_shape=self.mdp.info.action_space.size,
             n_actions=self.mdp.info.action_space.n,
@@ -62,28 +65,18 @@ class DQN_exp(AbstractExp):
             self.policy,
             TorchApproximator,
             approximator_params=approximator_params,
-            batch_size=batch_size,
-            initial_replay_size=initial_replay_size,
-            max_replay_size=max_replay_size,
-            target_update_frequency=target_update_frequency,
+            batch_size=self._agent_config.batch_size,
+            initial_replay_size=self.initial_replay_size,
+            max_replay_size=self.max_replay_size,
+            target_update_frequency=self._agent_config.target_update_frequency,
         )
 
     def train(
         self,
-        n_steps: int,
-        test_samples: int,
-        eval_policy_param: Parameter,
-        train_frequency: int = 1,
-        n_epochs: int = 100,
         use_wandb: bool = False,
     ) -> None:
         # first we need to fill the replay memory.
         self.core.learn(n_steps=self.initial_replay_size, n_steps_per_fit=self.initial_replay_size)
         return super().train(
-            n_steps=n_steps,
-            test_samples=test_samples,
-            eval_policy_param=eval_policy_param,
-            train_frequency=train_frequency,
-            n_epochs=n_epochs,
             use_wandb=use_wandb,
         )
