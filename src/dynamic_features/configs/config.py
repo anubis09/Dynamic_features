@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import Any, List
 
 from omegaconf import MISSING
 
@@ -18,7 +18,7 @@ defaults = [
 
 @dataclass
 class Config:
-    defaults: List = field(default_factory=lambda: defaults)
+    defaults: List[Any] = field(default_factory=lambda: defaults)
 
     # Hydra will populate this field based on the defaults list
     algorithm: AlgorithmConfig = MISSING

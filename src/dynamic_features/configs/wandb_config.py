@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict
+from typing import Any, Dict
 
 
 @dataclass
@@ -9,4 +9,4 @@ class WandbConfig:
     job_type: str
     group: str
     name: str
-    config: Dict
+    config: Dict[str, Any]

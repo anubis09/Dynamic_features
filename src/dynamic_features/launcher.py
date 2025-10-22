@@ -12,7 +12,7 @@ register_configs()
 @hydra.main(version_base=None, config_path=str(CONFIGS_PATH), config_name="config")
 def experiment(
     cfg: DictConfig,
-):
+) -> None:
     # instantiate allows us to create an instance cfg.algorithm._target_ class.
     # _convert_ is used to convert the DictConfig to the backing structured object.
     # the other parameters are input for the __init__ method.

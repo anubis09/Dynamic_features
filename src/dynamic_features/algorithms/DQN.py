@@ -1,12 +1,13 @@
-from typing import Optional
+from typing import final
 
 import torch
 import torch.nn.functional as F
 from mushroom_rl.algorithms.value import DQN
 from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom_rl.policy import EpsGreedy
-from mushroom_rl.utils.parameters import LinearParameter, Parameter
+from mushroom_rl.utils.parameters import Parameter
 from torch.optim.adam import Adam
+from typing_extensions import override
 
 from dynamic_features.algorithms.abc_algorithm import AbstractAlg
 from dynamic_features.configs.algorithm.algorithm_conf import PolicyConfig, TrainingConfig
@@ -16,6 +17,7 @@ from dynamic_features.configs.wandb_config import WandbConfig
 from dynamic_features.models.Linear import Linear
 
 
+@final
 class DQN_exp(AbstractAlg[DqnAgentConfig]):
     __slots__ = ["initial_replay_size", "max_replay_size"]
 
@@ -26,25 +28,22 @@ class DQN_exp(AbstractAlg[DqnAgentConfig]):
         train: TrainingConfig,
         env: EnvConfig,
         wandb: WandbConfig,
-        seed: Optional[int],
+        seed: int,
     ):
-        torch.manual_seed(seed)
+        _ = torch.manual_seed(seed)
         super().__init__(policy=policy, agent=agent, train=train, env=env, wandb=wandb, seed=seed)
+        self.initial_replay_size = self._agent_config.initial_replay_size
+        self.max_replay_size = self._agent_config.max_replay_size
 
+    @override
     def _create_policy(self):
-        # initializing epsilon for the epsilon greedy exploration
-        self.exploration_policy_param = LinearParameter(
-            value=self._policy_config.initial_exp_rate,
-            threshold_value=self._policy_config.final_exp_rate,
-            n=self._policy_config.final_exp_frame,
-        )
+        super()._create_policy()
         # in DQN we start with a random epsilon
         epsilon_random = Parameter(value=1.0)
         self.policy = EpsGreedy(epsilon=epsilon_random)
 
+    @override
     def _create_agent(self):
-        self.initial_replay_size = self._agent_config.initial_replay_size
-        self.max_replay_size = self._agent_config.max_replay_size
         loss = F.smooth_l1_loss if self._agent_config.loss_name == "smooth_l1_loss" else F.mse_loss
 
         # Approximator
@@ -71,6 +70,7 @@ class DQN_exp(AbstractAlg[DqnAgentConfig]):
             target_update_frequency=self._agent_config.target_update_frequency,
         )
 
+    @override
     def train(
         self,
         use_wandb: bool = False,

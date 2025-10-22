@@ -1,14 +1,15 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import asdict
-from typing import Generic, Optional, Tuple
+from logging import Logger
+from typing import Any, Generic, Tuple
 
 import numpy as np
 import wandb
 from mushroom_rl.core import Core
 from mushroom_rl.environments import Gym
 from mushroom_rl.utils.dataset import compute_J
-from mushroom_rl.utils.parameters import Parameter
+from mushroom_rl.utils.parameters import LinearParameter, Parameter
 
 from dynamic_features.configs.algorithm.algorithm_conf import PolicyConfig, TAgentConfig, TrainingConfig
 from dynamic_features.configs.env_config import EnvConfig
@@ -41,21 +42,21 @@ class AbstractAlg(ABC, Generic[TAgentConfig]):
         train: TrainingConfig,
         env: EnvConfig,
         wandb: WandbConfig,
-        seed: Optional[int],
+        seed: int,
     ) -> None:
-        self._logger = logging.getLogger(self.__class__.__name__)
+        self._logger: Logger = logging.getLogger(self.__class__.__name__)
         self._logger.setLevel(logging.DEBUG)
-        self.seed = seed
+        self.seed: int = seed
         np.random.seed(seed)
-        self._mdp_config = env
+        self._mdp_config: EnvConfig = env
         self._create_mdp()
-        self._policy_config = policy
+        self._policy_config: PolicyConfig = policy
         self._create_policy()
-        self._agent_config = agent
+        self._agent_config: TAgentConfig = agent
         self._create_agent()
         self._create_core()
-        self._training_config = train
-        self._wandb_conf = {
+        self._training_config: TrainingConfig = train
+        self._wandb_conf: dict[str, Any] = {
             **asdict(wandb),
             "config": {**asdict(agent), **asdict(policy), **asdict(train), **asdict(env)},
         }
@@ -65,18 +66,23 @@ class AbstractAlg(ABC, Generic[TAgentConfig]):
         mdp_name = self._mdp_config.name
         if "-" not in mdp_name:
             raise ConfigurationError(f"The following mdp ({mdp_name}) is not supported.")
-        self.gamma = self._mdp_config.core.gamma
+        self.gamma: float = self._mdp_config.core.gamma
         try:
-            self.mdp = Gym(mdp_name, horizon=self._mdp_config.core.horizon, gamma=self.gamma)
+            self.mdp: Gym = Gym(mdp_name, horizon=self._mdp_config.core.horizon, gamma=self.gamma)
             self.mdp.seed(self.seed)
             self._logger.info(f"initialized mdp: {mdp_name} with gamma={self.gamma}")
         except Exception as e:
             raise ConfigurationError(f"Failed to create environment '{mdp_name}': {e}")
 
-    @abstractmethod
     def _create_policy(self) -> None:
         """Create the policy for the agent."""
-        pass
+        # This is a piece of code that will be common for every subclass, so we put it here.
+        # initializing epsilon for the epsilon greedy exploration
+        self.exploration_policy_param: LinearParameter = LinearParameter(
+            value=self._policy_config.initial_exp_rate,
+            threshold_value=self._policy_config.final_exp_rate,
+            n=self._policy_config.final_exp_frame,
+        )
 
     @abstractmethod
     def _create_agent(self) -> None:
@@ -89,7 +95,7 @@ class AbstractAlg(ABC, Generic[TAgentConfig]):
             raise ExperimentError("Mdp must be created before core. Call create_mdp() first.")
         if not hasattr(self, "agent"):
             raise ExperimentError("Agent must be created before core. Call create_agent() first.")
-        self.core = Core(agent=self.agent, mdp=self.mdp)
+        self.core: Core = Core(agent=self.agent, mdp=self.mdp)
         self._logger.info("Core initialized successfully")
 
     def _configure_policy_exploration_behavior(self, param: Parameter) -> None:
@@ -116,7 +122,7 @@ class AbstractAlg(ABC, Generic[TAgentConfig]):
         wandb_active = use_wandb and self._wandb_conf
         if wandb_active:
             try:
-                wandb.init(**self._wandb_conf)
+                _ = wandb.init(**self._wandb_conf)
                 self._logger.info("Wandb initialized successfully")
             except Exception as e:
                 self._logger.warning(f"Failed to initialize wandb: {e}")
@@ -160,7 +166,7 @@ class AbstractAlg(ABC, Generic[TAgentConfig]):
 
         self._logger.info("Training completed")
 
-    def _evaluate(self, test_samples: int, eval_exploration_param: Parameter) -> Tuple[np.floating, np.floating]:
+    def _evaluate(self, test_samples: int, eval_exploration_param: Parameter) -> Tuple[np.float_, np.float_]:
         """Evaluate the current policy and return average returns."""
 
         # Set deterministic policy for evaluation
@@ -173,7 +179,7 @@ class AbstractAlg(ABC, Generic[TAgentConfig]):
 
         return J, dJ
 
-    def _log_to_wandb(self, J: np.floating, dJ: np.floating, step: int) -> None:
+    def _log_to_wandb(self, J: np.float_, dJ: np.float_, step: int) -> None:
         """Log metrics to wandb."""
         group_name = self._wandb_conf.get("group")
         wandb.log(
