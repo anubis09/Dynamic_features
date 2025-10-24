@@ -15,11 +15,10 @@ dependencies = [
     "mushroom-rl[all]>=1.10.1",
     "numpy>=1.24.4",
     "torch==2.4",
-    "wandb>=0.19.6",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.3.4"]
+dev = ["pytest>=8.3.4","pre-commit>=3.5.0","wandb>=0.19.6",]
 
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
@@ -28,7 +27,7 @@ addopts = "-s"
 [tool.basedpyright]
 typeCheckingMode = "standard"
 include = ["src"]
-ignore = ["**/__pycache__"]
+ignore = ["**/__pycache__", ".venv"]
 allowedUntypedLibraries = ["hydra","mushroom_rl", "torch"]
 
 [tool.ruff]
