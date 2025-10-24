@@ -32,4 +32,3 @@ allowedUntypedLibraries = ["hydra","mushroom_rl", "torch"]
 
 [tool.ruff]
 line-length = 120
-ignore = ["F722"]
