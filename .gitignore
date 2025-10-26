@@ -4,4 +4,4 @@
 *logs
 *wandb
 outputs*
-*.DS_Store
+#*.DS_Store
