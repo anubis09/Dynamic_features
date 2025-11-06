@@ -31,9 +31,9 @@ class DQN_exp(AbstractAlg[DqnAgentConfig]):
         seed: int,
     ):
         _ = torch.manual_seed(seed)
+        self.initial_replay_size = agent.initial_replay_size
+        self.max_replay_size = agent.max_replay_size
         super().__init__(policy=policy, agent=agent, train=train, env=env, wandb=wandb, seed=seed)
-        self.initial_replay_size = self._agent_config.initial_replay_size
-        self.max_replay_size = self._agent_config.max_replay_size
 
     @override
     def _create_policy(self):
