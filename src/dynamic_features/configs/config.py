@@ -9,9 +9,9 @@ from dynamic_features.configs.wandb_config import WandbConfig
 from .env_config import EnvConfig
 
 defaults = [
-    # Load the config "dqn" from the config group "algorithm"
     {"algorithm": "dqn"},
     {"environment": MISSING},
+    {"override hydra/launcher": "joblib"},  # overriding the default launcher with joblib
     "_self_",
 ]
 
