@@ -9,16 +9,15 @@ from mushroom_rl.utils.parameters import Parameter
 from torch.optim.adam import Adam
 from typing_extensions import override
 
-from dynamic_features.algorithms.abc_algorithm import AbstractAlg
-from dynamic_features.configs.algorithm.algorithm_conf import PolicyConfig, TrainingConfig
-from dynamic_features.configs.algorithm.dqn import DqnAgentConfig
 from dynamic_features.configs.env_config import EnvConfig
+from dynamic_features.configs.experiments.dqn import DqnAgentConfig, PolicyConfig, TrainingConfig
 from dynamic_features.configs.wandb_config import WandbConfig
+from dynamic_features.experiments.abstract_experiment import AbstractExp
 from dynamic_features.models.Linear import Linear
 
 
 @final
-class DQN_exp(AbstractAlg[DqnAgentConfig]):
+class DQN_exp(AbstractExp[DqnAgentConfig]):
     __slots__ = ["initial_replay_size", "max_replay_size"]
 
     def __init__(

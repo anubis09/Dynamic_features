@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import TypeVar
 
 
 @dataclass
@@ -30,8 +30,8 @@ TAgentConfig = TypeVar("TAgentConfig", bound=AgentConfig)
 
 
 @dataclass
-class AlgorithmConfig:
+class ExperimentConfig:
     _target_: str
-    policy: Any
-    agent: Any
-    train: Any
+    policy: PolicyConfig
+    agent: AgentConfig
+    train: TrainingConfig

@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 
-from dynamic_features.configs.algorithm.algorithm_conf import AgentConfig, AlgorithmConfig, PolicyConfig, TrainingConfig
+from dynamic_features.configs.experiments.experiment_conf import (
+    AgentConfig,
+    ExperimentConfig,
+    PolicyConfig,
+    TrainingConfig,
+)
 
 
 @dataclass
@@ -11,10 +16,10 @@ class DqnAgentConfig(AgentConfig):
 
 
 @dataclass
-class DqnConfig(AlgorithmConfig):
-    _target_: str = "dynamic_features.algorithms.DQN.DQN_exp"
+class DqnConfig(ExperimentConfig):
+    _target_: str = "dynamic_features.experiments.dqn.DQN_exp"
     policy: PolicyConfig = PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=1_000)
-    agent: DqnAgentConfig = DqnAgentConfig(
+    agent: AgentConfig = DqnAgentConfig(
         initial_replay_size=250,
         max_replay_size=10_000,
         target_update_frequency=300,

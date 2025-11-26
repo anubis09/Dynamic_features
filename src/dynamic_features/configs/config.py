@@ -3,7 +3,7 @@ from typing import Any, List
 
 from omegaconf import MISSING
 
-from dynamic_features.configs.algorithm.algorithm_conf import AlgorithmConfig
+from dynamic_features.configs.experiments.experiment_conf import ExperimentConfig
 from dynamic_features.configs.wandb_config import WandbConfig
 
 from .env_config import EnvConfig
@@ -21,7 +21,7 @@ class Config:
     defaults: List[Any] = field(default_factory=lambda: defaults)
 
     # Hydra will populate this field based on the defaults list
-    algorithm: AlgorithmConfig = MISSING
+    algorithm: ExperimentConfig = MISSING
     environment: EnvConfig = MISSING
 
     seed: int = 0

@@ -1,8 +1,8 @@
 from hydra.core.config_store import ConfigStore
 
-from dynamic_features.configs.algorithm.dqn import DqnConfig
 from dynamic_features.configs.config import Config
 from dynamic_features.configs.env_config import AcrobotEnvConfig, LunarLanderEnvConfig, MountainCarEnvConfig
+from dynamic_features.configs.experiments.dqn import DqnConfig
 
 
 # config store are used to load predefined configurations at runtime.

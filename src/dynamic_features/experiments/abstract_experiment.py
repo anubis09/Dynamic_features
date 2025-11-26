@@ -11,14 +11,14 @@ from mushroom_rl.environments import Gym
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
 
-from dynamic_features.configs.algorithm.algorithm_conf import PolicyConfig, TAgentConfig, TrainingConfig
 from dynamic_features.configs.env_config import EnvConfig
+from dynamic_features.configs.experiments.experiment_conf import PolicyConfig, TAgentConfig, TrainingConfig
 from dynamic_features.configs.wandb_config import WandbConfig
 
 
 # Putting here Generic[TAgentConfig] allows the class to be generic over the type of agent configuration
 # A subclass of AbstractAlgorith can use a specific subclass of AgentConfig without getting lsp errors.
-class AbstractAlg(ABC, Generic[TAgentConfig]):
+class AbstractExp(ABC, Generic[TAgentConfig]):
     __slots__ = [
         "mdp",
         "_mdp_config",
