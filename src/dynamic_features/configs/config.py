@@ -26,11 +26,13 @@ class Config:
 
     seed: int = 0
     wandb_log: bool = False
-    wandb: WandbConfig = WandbConfig(
-        project="Dynamic_Features",
-        entity="Dynamic_Tiles_Thesis",
-        job_type="",
-        group="${environment.name}",
-        name="seed_${seed}",
-        config={},
+    wandb: WandbConfig = field(
+        default_factory=lambda: WandbConfig(
+            project="Dynamic_Features",
+            entity="Dynamic_Tiles_Thesis",
+            job_type="",
+            group="${environment.name}",
+            name="seed_${seed}",
+            config={},
+        )
     )

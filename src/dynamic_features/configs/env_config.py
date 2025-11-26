@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 
@@ -24,19 +24,19 @@ class EnvConfig:
 @dataclass
 class MountainCarEnvConfig(EnvConfig):
     name: str = "MountainCar-v0"
-    core: EnvCore = EnvCore(gamma=0.99, horizon=None)
-    rainbow: RainbowParams = RainbowParams(v_min=-11_000, v_max=-1)
+    core: EnvCore = field(default_factory=lambda: EnvCore(gamma=0.99, horizon=None))
+    rainbow: RainbowParams = field(default_factory=lambda: RainbowParams(v_min=-11_000, v_max=-1))
 
 
 @dataclass
 class LunarLanderEnvConfig(EnvConfig):
     name: str = "LunarLander-v2"
-    core: EnvCore = EnvCore(gamma=0.99, horizon=1000)
-    rainbow: RainbowParams = RainbowParams(v_min=-1_000, v_max=300)
+    core: EnvCore = field(default_factory=lambda: EnvCore(gamma=0.99, horizon=1000))
+    rainbow: RainbowParams = field(default_factory=lambda: RainbowParams(v_min=-1_000, v_max=300))
 
 
 @dataclass
 class AcrobotEnvConfig(EnvConfig):
     name: str = "Acrobot-v1"
-    core: EnvCore = EnvCore(gamma=0.99, horizon=None)
-    rainbow: RainbowParams = RainbowParams(v_min=-500, v_max=1)
+    core: EnvCore = field(default_factory=lambda: EnvCore(gamma=0.99, horizon=None))
+    rainbow: RainbowParams = field(default_factory=lambda: RainbowParams(v_min=-500, v_max=1))
