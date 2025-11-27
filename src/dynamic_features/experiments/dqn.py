@@ -1,7 +1,6 @@
 from typing import final
 
 import torch
-import torch.nn.functional as F
 from mushroom_rl.algorithms.value import DQN
 from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom_rl.policy import EpsGreedy
@@ -43,7 +42,7 @@ class DQN_exp(AbstractExp[DqnAgentConfig]):
 
     @override
     def _create_agent(self):
-        loss = F.smooth_l1_loss if self._agent_config.loss_name == "smooth_l1_loss" else F.mse_loss
+        loss = self._agent_config.loss.value.function
 
         # Approximator
         input_shape = self.mdp.info.observation_space.shape

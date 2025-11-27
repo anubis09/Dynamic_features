@@ -1,5 +1,19 @@
 from dataclasses import dataclass
-from typing import TypeVar
+from enum import Enum
+from typing import Callable, TypeVar
+
+import torch.nn.functional as F
+
+
+@dataclass
+class Loss:
+    name: str
+    function: Callable
+
+
+class losses(Enum):
+    MSE = Loss(name="mse_loss", function=F.mse_loss)
+    SL1 = Loss(name="smooth_l1_loss", function=F.smooth_l1_loss)
 
 
 @dataclass
@@ -13,7 +27,7 @@ class PolicyConfig:
 class AgentConfig:
     batch_size: int
     n_features: int
-    loss_name: str
+    loss: losses
     learning_rate: float
 
 

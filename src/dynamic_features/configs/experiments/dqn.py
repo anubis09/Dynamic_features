@@ -28,7 +28,7 @@ class DqnConfig(ExperimentConfig):
             target_update_frequency=300,
             batch_size=32,
             n_features=100,
-            loss_name="mse_loss",
+            loss="MSE",
             learning_rate=3e-4,
         )
     )
