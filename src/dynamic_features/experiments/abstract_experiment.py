@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 from logging import Logger
-from typing import Any, Generic, Tuple
+from typing import Generic, List, Tuple
 
 import numpy as np
 import wandb
@@ -20,17 +20,21 @@ from dynamic_features.configs.wandb_config import WandbConfig
 # A subclass of AbstractAlgorith can use a specific subclass of AgentConfig without getting lsp errors.
 class AbstractExp(ABC, Generic[TAgentConfig]):
     __slots__ = [
-        "mdp",
+        # Environment
+        "_mdp",
         "_mdp_config",
-        "gamma",
-        "exploration_policy_param",
-        "policy",
+        "_gamma",
+        # Policy
+        "_exploration_policy_param",
+        "_policy",
         "_policy_config",
-        "agent",
+        # Agent & Core
+        "_agent",
         "_agent_config",
-        "core",
+        "_core",
+        # Configuration
         "_training_config",
-        "seed",
+        "_seed",
         "_wandb_conf",
         "_logger",
     ]
@@ -44,89 +48,104 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         wandb: WandbConfig,
         seed: int,
     ) -> None:
+        """Save all configs and initialize all components."""
         self._logger: Logger = logging.getLogger(self.__class__.__name__)
         self._logger.setLevel(logging.DEBUG)
-        self.seed: int = seed
-        np.random.seed(seed)
-        self._mdp_config: EnvConfig = env
-        self._create_mdp()
-        self._policy_config: PolicyConfig = policy
-        self._create_policy()
-        self._agent_config: TAgentConfig = agent
-        self._create_agent()
-        self._create_core()
-        self._training_config: TrainingConfig = train
-        self._wandb_conf: dict[str, Any] = {
+
+        # Store all configs
+        self._seed = seed
+        self._mdp_config = env
+        self._policy_config = policy
+        self._agent_config = agent
+        self._training_config = train
+        self._wandb_conf = {
             **asdict(wandb),
             "config": {**asdict(agent), **asdict(policy), **asdict(train), **asdict(env)},
         }
+
+        # Initialize all components
+        self._setup()
+
+    def _setup(self) -> None:
+        """Initialize all components in the correct order."""
+        np.random.seed(self._seed)
+        self._create_mdp()
+        self._create_policy()
+        self._create_agent()
+        self._create_core()
+        self._logger.info("Experiment setup complete")
 
     def _create_mdp(self) -> None:
         """Initialize the MDP environment from configuration."""
         mdp_name = self._mdp_config.name
         if "-" not in mdp_name:
             raise ConfigurationError(f"The following mdp ({mdp_name}) is not supported.")
-        self.gamma: float = self._mdp_config.core.gamma
+        self._gamma: float = self._mdp_config.core.gamma
         try:
-            self.mdp: Gym = Gym(mdp_name, horizon=self._mdp_config.core.horizon, gamma=self.gamma)
-            self.mdp.seed(self.seed)
-            self._logger.info(f"initialized mdp: {mdp_name} with gamma={self.gamma}")
+            self._mdp: Gym = Gym(mdp_name, horizon=self._mdp_config.core.horizon, gamma=self._gamma)
+            self._mdp.seed(self._seed)
+            self._logger.info(f"initialized mdp: {mdp_name} with gamma={self._gamma}")
         except Exception as e:
             raise ConfigurationError(f"Failed to create environment '{mdp_name}': {e}")
 
     def _create_policy(self) -> None:
-        """Create the policy for the agent."""
-        # This is a piece of code that will be common for every subclass, so we put it here.
-        # initializing epsilon for the epsilon greedy exploration
-        self.exploration_policy_param: LinearParameter = LinearParameter(
+        """Create exploration parameter and policy."""
+        self._create_exploration_param()
+        self._create_policy_instance()
+
+    def _create_exploration_param(self) -> None:
+        """Create the exploration parameter."""
+        self._exploration_policy_param = LinearParameter(
             value=self._policy_config.initial_exp_rate,
             threshold_value=self._policy_config.final_exp_rate,
             n=self._policy_config.final_exp_frame,
         )
 
     @abstractmethod
+    def _create_policy_instance(self) -> None:
+        """Create the actual policy object. Must set self._policy."""
+        pass
+
+    @abstractmethod
     def _create_agent(self) -> None:
         """Create the RL agent."""
         pass
 
-    def _create_core(self):
+    def _create_core(self) -> None:
         """Create the MushroomRL Core object."""
-        if not hasattr(self, "mdp"):
-            raise ExperimentError("Mdp must be created before core. Call create_mdp() first.")
-        if not hasattr(self, "agent"):
-            raise ExperimentError("Agent must be created before core. Call create_agent() first.")
-        self.core: Core = Core(agent=self.agent, mdp=self.mdp)
+        self._core: Core = Core(agent=self._agent, mdp=self._mdp)
         self._logger.info("Core initialized successfully")
 
     def _configure_policy_exploration_behavior(self, param: Parameter) -> None:
         """Configure policy behavior based on parameter value."""
-        if not hasattr(self, "policy"):
-            raise ExperimentError("Policy not initialized")
-
-        if hasattr(self.policy, "set_epsilon"):
-            self.policy.set_epsilon(param)
-        elif hasattr(self.policy, "set_beta"):
-            self.policy.set_beta(param)
+        if hasattr(self._policy, "set_epsilon"):
+            self._policy.set_epsilon(param)
+        elif hasattr(self._policy, "set_beta"):
+            self._policy.set_beta(param)
         else:
             raise ExperimentError("Policy has neither epsilon nor beta parameter")
+
+    def _initialize_wandb(self) -> bool:
+        """Initialize wandb and return success status."""
+        if not self._wandb_conf:
+            return False
+        try:
+            wandb.init(**self._wandb_conf)
+            self._logger.info("Wandb initialized successfully")
+            return True
+        except Exception as e:
+            self._logger.warning(f"Failed to initialize wandb: {e}")
+            return False
 
     def train(
         self,
         use_wandb: bool = False,
-    ) -> None:
+    ) -> Tuple[List[np.float_], List[np.float_]]:
         """
         Train the agent with periodic evaluation.
         """
-
         # Initialize wandb if requested and configured
-        wandb_active = use_wandb and self._wandb_conf
-        if wandb_active:
-            try:
-                _ = wandb.init(**self._wandb_conf)
-                self._logger.info("Wandb initialized successfully")
-            except Exception as e:
-                self._logger.warning(f"Failed to initialize wandb: {e}")
-                wandb_active = False
+        wandb_active = use_wandb and self._initialize_wandb()
 
         J_list = []
         dJ_list = []
@@ -151,8 +170,8 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
 
         for epoch in range(1, n_epochs + 1):
             # Learning step
-            self._configure_policy_exploration_behavior(self.exploration_policy_param)
-            self.core.learn(n_steps=n_steps, n_steps_per_fit=train_frequency)
+            self._configure_policy_exploration_behavior(self._exploration_policy_param)
+            self._core.learn(n_steps=n_steps, n_steps_per_fit=train_frequency)
 
             # Evaluation step
             J_curr, dJ_curr = self._evaluate(test_samples, eval_policy_param)
@@ -165,6 +184,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             wandb.finish()
 
         self._logger.info("Training completed")
+        return J_list, dJ_list
 
     def _evaluate(self, test_samples: int, eval_exploration_param: Parameter) -> Tuple[np.float_, np.float_]:
         """Evaluate the current policy and return average returns."""
@@ -172,10 +192,10 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         # Set deterministic policy for evaluation
         self._configure_policy_exploration_behavior(eval_exploration_param)
 
-        dataset = self.core.evaluate(n_steps=test_samples, render=False)
+        dataset = self._core.evaluate(n_steps=test_samples, render=False)
 
         J = np.mean(compute_J(dataset, gamma=1.0))  # Undiscounted return
-        dJ = np.mean(compute_J(dataset, gamma=self.gamma))  # Discounted return
+        dJ = np.mean(compute_J(dataset, gamma=self._gamma))  # Discounted return
 
         return J, dJ
 
@@ -192,12 +212,17 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         )
 
     def save_agent(self, path: str) -> None:
-        if not hasattr(self, "agent"):
+        if not hasattr(self, "_agent"):
             raise ExperimentError("agent not initialized")
-        if ".msh" not in path:
-            path += ".msh"
 
-        self.agent.save(path)
+        if not path.endswith(".msh"):
+            path = f"{path}.msh"
+
+        try:
+            self._agent.save(path)
+            self._logger.info(f"Agent saved successfully to {path}")
+        except Exception as e:
+            raise ExperimentError(f"Failed to save agent to {path}: {e}")
 
 
 class ExperimentError(Exception):
