@@ -5,6 +5,7 @@ from dynamic_features.configs.experiments.experiment_conf import (
     ExperimentConfig,
     PolicyConfig,
     TrainingConfig,
+    losses,
 )
 
 
@@ -28,7 +29,7 @@ class DqnConfig(ExperimentConfig):
             target_update_frequency=300,
             batch_size=32,
             n_features=100,
-            loss="MSE",
+            loss=losses.MSE,
             learning_rate=3e-4,
         )
     )
