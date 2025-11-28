@@ -1,6 +1,4 @@
 from typing import List, Tuple, final
-
-import numpy as np
 import torch
 from mushroom_rl.algorithms.value import DQN
 from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
@@ -9,11 +7,10 @@ from mushroom_rl.utils.parameters import Parameter
 from torch.optim.adam import Adam
 from typing_extensions import override
 
-from dynamic_features.configs.env_config import EnvConfig
-from dynamic_features.configs.experiments.dqn import DqnAgentConfig, PolicyConfig, TrainingConfig
-from dynamic_features.configs.wandb_config import WandbConfig
-from dynamic_features.experiments.abstract_experiment import AbstractExp
+from dynamic_features.configs import DqnAgentConfig, EnvConfig, PolicyConfig, TrainingConfig, WandbConfig
 from dynamic_features.models.Linear import Linear
+
+from .abstract_experiment import AbstractExp
 
 
 @final
@@ -28,20 +25,24 @@ class DQN_exp(AbstractExp[DqnAgentConfig]):
         env: EnvConfig,
         wandb: WandbConfig,
         seed: int,
-    ):
+    ) -> None:
         _ = torch.manual_seed(seed)
-        self._initial_replay_size = agent.initial_replay_size
-        self._max_replay_size = agent.max_replay_size
+        self._initial_replay_size: int = agent.initial_replay_size
+        self._max_replay_size: int = agent.max_replay_size
         super().__init__(policy=policy, agent=agent, train=train, env=env, wandb=wandb, seed=seed)
 
     @override
-    def _create_policy_instance(self):
-        # in DQN we start with a random epsilon
-        epsilon_random = Parameter(value=1.0)
-        self._policy = EpsGreedy(epsilon=epsilon_random)
+    def _configure_policy_exploration_behavior(self, param: Parameter) -> None:
+        self._policy.set_epsilon(param)
 
     @override
-    def _create_agent(self):
+    def _create_policy(self) -> None:
+        # in DQN we start with a random epsilon
+        epsilon_random = Parameter(value=1.0)
+        self._policy: EpsGreedy = EpsGreedy(epsilon=epsilon_random)
+
+    @override
+    def _create_agent(self) -> None:
         loss = self._agent_config.loss.value.function
 
         # Approximator
@@ -57,7 +58,7 @@ class DQN_exp(AbstractExp[DqnAgentConfig]):
         )
 
         # Agent
-        self._agent = DQN(
+        self._agent: DQN = DQN(
             self._mdp.info,
             self._policy,
             TorchApproximator,
@@ -72,7 +73,7 @@ class DQN_exp(AbstractExp[DqnAgentConfig]):
     def train(
         self,
         use_wandb: bool = False,
-    ) -> Tuple[List[np.float_], List[np.float_]]:
+    ) -> Tuple[List[float], List[float]]:
         # first we need to fill the replay memory.
         self._core.learn(n_steps=self._initial_replay_size, n_steps_per_fit=self._initial_replay_size)
         return super().train(

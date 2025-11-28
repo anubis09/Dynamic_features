@@ -1,8 +1,19 @@
 from hydra.core.config_store import ConfigStore
 
-from dynamic_features.configs.config import Config
-from dynamic_features.configs.env_config import AcrobotEnvConfig, LunarLanderEnvConfig, MountainCarEnvConfig
-from dynamic_features.configs.experiments.dqn import DqnConfig
+from .config import Config
+from .env_config import AcrobotEnvConfig, EnvConfig, EnvCore, LunarLanderEnvConfig, MountainCarEnvConfig, RainbowParams
+from .experiments import (
+    AgentConfig,
+    DqnAgentConfig,
+    DqnConfig,
+    ExperimentConfig,
+    Loss,
+    Losses,
+    PolicyConfig,
+    TAgentConfig,
+    TrainingConfig,
+)
+from .wandb_config import WandbConfig
 
 
 # config store are used to load predefined configurations at runtime.
@@ -20,4 +31,23 @@ def register_configs():
     cs.store(name="config", node=Config)
 
 
-__all__ = ["register_configs"]
+__all__ = [
+    "register_configs",
+    "Config",
+    "EnvConfig",
+    "EnvCore",
+    "AcrobotEnvConfig",
+    "LunarLanderEnvConfig",
+    "MountainCarEnvConfig",
+    "RainbowParams",
+    "AgentConfig",
+    "DqnAgentConfig",
+    "DqnConfig",
+    "ExperimentConfig",
+    "Loss",
+    "Losses",
+    "PolicyConfig",
+    "TAgentConfig",
+    "TrainingConfig",
+    "WandbConfig",
+]

@@ -5,15 +5,15 @@ from logging import Logger
 from typing import Generic, List, Tuple
 
 import numpy as np
-import wandb
 from mushroom_rl.core import Core
 from mushroom_rl.environments import Gym
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
 
-from dynamic_features.configs.env_config import EnvConfig
-from dynamic_features.configs.experiments.experiment_conf import PolicyConfig, TAgentConfig, TrainingConfig
-from dynamic_features.configs.wandb_config import WandbConfig
+import wandb
+from dynamic_features.configs import EnvConfig, PolicyConfig, TAgentConfig, TrainingConfig, WandbConfig
+
+from .exceptions import ConfigurationError, ExperimentError
 
 
 # Putting here Generic[TAgentConfig] allows the class to be generic over the type of agent configuration
@@ -53,17 +53,23 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._logger.setLevel(logging.DEBUG)
 
         # Store all configs
-        self._seed = seed
         self._mdp_config = env
         self._policy_config = policy
         self._agent_config = agent
         self._training_config = train
         self._wandb_conf = {
             **asdict(wandb),
-            "config": {**asdict(agent), **asdict(policy), **asdict(train), **asdict(env)},
+            "config": {"agent": asdict(agent), "policy": asdict(policy), "train": asdict(train), "env": asdict(env)},
         }
 
-        # Initialize all components
+        self._seed = seed
+        self._gamma: float = env.core.gamma
+        self._exploration_policy_param: LinearParameter = LinearParameter(
+            value=policy.initial_exp_rate,
+            threshold_value=policy.final_exp_rate,
+            n=policy.final_exp_frame,
+        )
+
         self._setup()
 
     def _setup(self) -> None:
@@ -78,9 +84,6 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
     def _create_mdp(self) -> None:
         """Initialize the MDP environment from configuration."""
         mdp_name = self._mdp_config.name
-        if "-" not in mdp_name:
-            raise ConfigurationError(f"The following mdp ({mdp_name}) is not supported.")
-        self._gamma: float = self._mdp_config.core.gamma
         try:
             self._mdp: Gym = Gym(mdp_name, horizon=self._mdp_config.core.horizon, gamma=self._gamma)
             self._mdp.seed(self._seed)
@@ -88,23 +91,9 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         except Exception as e:
             raise ConfigurationError(f"Failed to create environment '{mdp_name}': {e}")
 
-    def _create_policy(self) -> None:
-        """Create exploration parameter and policy."""
-        self._create_exploration_param()
-        self._create_policy_instance()
-
-    def _create_exploration_param(self) -> None:
-        """Create the exploration parameter."""
-        self._exploration_policy_param = LinearParameter(
-            value=self._policy_config.initial_exp_rate,
-            threshold_value=self._policy_config.final_exp_rate,
-            n=self._policy_config.final_exp_frame,
-        )
-
     @abstractmethod
-    def _create_policy_instance(self) -> None:
-        """Create the actual policy object. Must set self._policy."""
-        pass
+    def _create_policy(self) -> None:
+        """Create policy."""
 
     @abstractmethod
     def _create_agent(self) -> None:
@@ -116,14 +105,9 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._core: Core = Core(agent=self._agent, mdp=self._mdp)
         self._logger.info("Core initialized successfully")
 
+    @abstractmethod
     def _configure_policy_exploration_behavior(self, param: Parameter) -> None:
         """Configure policy behavior based on parameter value."""
-        if hasattr(self._policy, "set_epsilon"):
-            self._policy.set_epsilon(param)
-        elif hasattr(self._policy, "set_beta"):
-            self._policy.set_beta(param)
-        else:
-            raise ExperimentError("Policy has neither epsilon nor beta parameter")
 
     def _initialize_wandb(self) -> bool:
         """Initialize wandb and return success status."""
@@ -140,7 +124,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
     def train(
         self,
         use_wandb: bool = False,
-    ) -> Tuple[List[np.float_], List[np.float_]]:
+    ) -> Tuple[List[float], List[float]]:
         """
         Train the agent with periodic evaluation.
         """
@@ -186,20 +170,18 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._logger.info("Training completed")
         return J_list, dJ_list
 
-    def _evaluate(self, test_samples: int, eval_exploration_param: Parameter) -> Tuple[np.float_, np.float_]:
-        """Evaluate the current policy and return average returns."""
-
+    def _evaluate(self, test_samples: int, eval_exploration_param: Parameter) -> Tuple[float, float]:
         # Set deterministic policy for evaluation
         self._configure_policy_exploration_behavior(eval_exploration_param)
 
         dataset = self._core.evaluate(n_steps=test_samples, render=False)
 
-        J = np.mean(compute_J(dataset, gamma=1.0))  # Undiscounted return
-        dJ = np.mean(compute_J(dataset, gamma=self._gamma))  # Discounted return
+        J = np.mean(compute_J(dataset, gamma=1.0)).item()  # Undiscounted return
+        dJ = np.mean(compute_J(dataset, gamma=self._gamma)).item()  # Discounted return
 
         return J, dJ
 
-    def _log_to_wandb(self, J: np.float_, dJ: np.float_, step: int) -> None:
+    def _log_to_wandb(self, J: float, dJ: float, step: int) -> None:
         """Log metrics to wandb."""
         group_name = self._wandb_conf.get("group")
         wandb.log(
@@ -212,7 +194,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         )
 
     def save_agent(self, path: str) -> None:
-        if not hasattr(self, "_agent"):
+        if self._agent is None:
             raise ExperimentError("agent not initialized")
 
         if not path.endswith(".msh"):
@@ -223,15 +205,3 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             self._logger.info(f"Agent saved successfully to {path}")
         except Exception as e:
             raise ExperimentError(f"Failed to save agent to {path}: {e}")
-
-
-class ExperimentError(Exception):
-    """Custom exception for experiment-related errors"""
-
-    pass
-
-
-class ConfigurationError(ExperimentError):
-    """Exception raised for configuration-related errors"""
-
-    pass

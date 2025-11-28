@@ -11,7 +11,7 @@ class Loss:
     function: Callable
 
 
-class losses(Enum):
+class Losses(Enum):
     MSE = Loss(name="mse_loss", function=F.mse_loss)
     SL1 = Loss(name="smooth_l1_loss", function=F.smooth_l1_loss)
 
@@ -27,7 +27,7 @@ class PolicyConfig:
 class AgentConfig:
     batch_size: int
     n_features: int
-    loss: losses
+    loss: Losses
     learning_rate: float
 
 
