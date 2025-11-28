@@ -18,7 +18,7 @@ class DqnAgentConfig(AgentConfig):
 
 @dataclass
 class DqnConfig(ExperimentConfig):
-    _target_: str = "dynamic_features.experiments.dqn.DQN_exp"
+    _target_: str = "dynamic_features.experiments.dqn.DqnExperiment"
     policy: PolicyConfig = field(
         default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=1_000)
     )

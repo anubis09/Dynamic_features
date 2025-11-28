@@ -10,8 +10,12 @@ from .env_config import EnvConfig
 
 defaults = [
     {"algorithm": "dqn"},
+    # Forces the user to specify an environment config; the program will fail if omitted.
     {"environment": MISSING},
-    {"override hydra/launcher": "joblib"},  # overriding the default launcher with joblib
+    # overrides the default launcher with joblib
+    {"override hydra/launcher": "joblib"},
+    # The "_self_" keyword indicates that the configuration defined in the class below (Config)
+    # takes precedence over the defaults loaded above regarding the root level keys.
     "_self_",
 ]
 

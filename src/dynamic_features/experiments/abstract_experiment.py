@@ -19,6 +19,35 @@ from .exceptions import ConfigurationError, ExperimentError
 # Putting here Generic[TAgentConfig] allows the class to be generic over the type of agent configuration
 # A subclass of AbstractAlgorith can use a specific subclass of AgentConfig without getting lsp errors.
 class AbstractExp(ABC, Generic[TAgentConfig]):
+    """Base abstract class for running reproducible RL experiments for my thesis.
+
+    This class implements the Template Method pattern to standardize the
+    initialization, training, evaluation, and logging loop for RL agents
+    using the MushroomRL library.
+
+    Subclasses must implement the abstract methods to define specific
+    agent and policy creation logic.
+
+    Attributes:
+        _mdp (Gym): The MushroomRL wrapped Gym environment instance.
+        _mdp_config (EnvConfig): Configuration object for the environment.
+        _gamma (float): Discount factor extracted from the environment config.
+
+        _policy (Policy): The initialized MushroomRL policy.
+        _policy_config (PolicyConfig): Configuration object for the policy.
+        _exploration_policy_param (Parameter): The exploration schedule (e.g. LinearParameter)
+            used during training.
+
+        _agent (Agent): The initialized MushroomRL agent.
+        _agent_config (TAgentConfig): Configuration object for the agent.
+        _core (Core): The MushroomRL Core object managing the agent-environment loop.
+
+        _training_config (TrainingConfig): Configuration for training epochs and steps.
+        _seed (int): Global random seed applied to Numpy, Python, and Gym.
+        _wandb_conf (dict): Dictionary configuration for Weights & Biases logging.
+        _logger (Logger): Class-specific Python logger instance.
+    """
+
     __slots__ = [
         # Environment
         "_mdp",
@@ -48,7 +77,20 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         wandb: WandbConfig,
         seed: int,
     ) -> None:
-        """Save all configs and initialize all components."""
+        """Initializes the experiment configuration and components.
+
+        This method stores the configurations, sets up namespaces for logging,
+        calculates derived parameters (like gamma), and triggers the
+        component setup sequence.
+
+        Args:
+            policy (PolicyConfig): Configuration for the agent's policy.
+            agent (TAgentConfig): Algorithm-specific agent configuration.
+            train (TrainingConfig): Training hyperparameters (epochs, steps).
+            env (EnvConfig): Environment parameters (id, horizon, gamma).
+            wandb (WandbConfig): Weights & Biases logging configuration.
+            seed (int): Random seed for reproducibility.
+        """
         self._logger: Logger = logging.getLogger(self.__class__.__name__)
         self._logger.setLevel(logging.DEBUG)
 
@@ -73,7 +115,16 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._setup()
 
     def _setup(self) -> None:
-        """Initialize all components in the correct order."""
+        """Orchestrates the initialization of all RL components.
+
+        This method ensures the correct instantiation order:
+        1. Seed numpy random generator
+        2. Create environment (also seeded)
+        3. Create policy
+        4. Create agent
+        5. Create core
+        """
+        self._logger.info(f"Initializing experiment with seed {self._seed}")
         np.random.seed(self._seed)
         self._create_mdp()
         self._create_policy()
@@ -82,51 +133,90 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._logger.info("Experiment setup complete")
 
     def _create_mdp(self) -> None:
-        """Initialize the MDP environment from configuration."""
+        """Initializes the MDP environment from configuration.
+
+        Raises:
+            ConfigurationError: If the environment ID is invalid, missing dependencies,
+                or fails to initialize via the MushroomRL Gym wrapper.
+        """
         mdp_name = self._mdp_config.name
         try:
             self._mdp: Gym = Gym(mdp_name, horizon=self._mdp_config.core.horizon, gamma=self._gamma)
             self._mdp.seed(self._seed)
-            self._logger.info(f"initialized mdp: {mdp_name} with gamma={self._gamma}")
+            self._logger.info(
+                f"Initialized environment: {mdp_name} (horizon={self._mdp_config.core.horizon}, γ={self._gamma})"
+            )
         except Exception as e:
-            raise ConfigurationError(f"Failed to create environment '{mdp_name}': {e}")
+            self._logger.error(f"Failed to create environment '{mdp_name}': {e}")
+            raise ConfigurationError(f"Failed to create environment '{mdp_name}': {e}") from e
 
     @abstractmethod
     def _create_policy(self) -> None:
-        """Create policy."""
+        """Abstract method to instantiate the policy.
+
+        Implementations should initialize `self._policy` using `self._policy_config`.
+        """
 
     @abstractmethod
     def _create_agent(self) -> None:
-        """Create the RL agent."""
+        """Abstract method to instantiate the RL Agent.
+
+        Implementations should initialize `self._agent` using `self._agent_config`,
+        `self._mdp.info`, and `self._policy`.
+        """
         pass
 
     def _create_core(self) -> None:
-        """Create the MushroomRL Core object."""
+        """Creates the MushroomRL Core object to manage the agent-environment loop."""
         self._core: Core = Core(agent=self._agent, mdp=self._mdp)
         self._logger.info("Core initialized successfully")
 
     @abstractmethod
     def _configure_policy_exploration_behavior(self, param: Parameter) -> None:
-        """Configure policy behavior based on parameter value."""
+        """Updates the policy's exploration parameter for the current step.
+
+        Args:
+            param (Parameter): The current exploration parameter (e.g., epsilon or beta).
+        """
 
     def _initialize_wandb(self) -> bool:
-        """Initialize wandb and return success status."""
+        """Initializes the WandB run if configuration is present.
+
+        Returns:
+            bool: True if WandB was successfully initialized, False otherwise.
+        """
         if not self._wandb_conf:
             return False
         try:
             wandb.init(**self._wandb_conf)
-            self._logger.info("Wandb initialized successfully")
+            self._logger.info(
+                f"WandB initialized: project={self._wandb_conf.get('project')}, group={self._wandb_conf.get('group')}"
+            )
             return True
         except Exception as e:
-            self._logger.warning(f"Failed to initialize wandb: {e}")
+            self._logger.warning(f"Failed to initialize WandB: {e}")
             return False
 
     def train(
         self,
         use_wandb: bool = False,
     ) -> Tuple[List[float], List[float]]:
-        """
-        Train the agent with periodic evaluation.
+        """Executes the main training loop.
+
+        This method runs the experiment for `n_epochs`. In each epoch, it:
+        1. Updates the exploration parameter.
+        2. Learns for `n_steps` (divided by `train_frequency` fits).
+        3. Evaluates the agent on test samples.
+        4. Logs metrics to WandB (if enabled).
+
+        Args:
+            use_wandb (bool, optional): Whether to log metrics to Weights & Biases.
+                Defaults to False.
+
+        Returns:
+            Tuple[List[float], List[float]]: A tuple containing two lists:
+                - J_list: Average undiscounted returns per epoch.
+                - dJ_list: Average discounted returns per epoch.
         """
         # Initialize wandb if requested and configured
         wandb_active = use_wandb and self._initialize_wandb()
@@ -140,6 +230,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         initial_J, initial_dJ = self._evaluate(test_samples, eval_policy_param)
         J_list.append(initial_J)
         dJ_list.append(initial_dJ)
+        self._logger.info(f"Initial evaluation: J={initial_J:.3f}, dJ={initial_dJ:.3f}")
 
         if wandb_active:
             self._log_to_wandb(J=initial_J, dJ=initial_dJ, step=0)
@@ -149,8 +240,12 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         train_frequency = self._training_config.train_frequency
 
         self._logger.info(
-            f"Starting training: {n_epochs} epochs, {n_steps} steps per epoch and {train_frequency} steps per fit"
+            f"Starting training: {n_epochs} epochs, {n_steps} steps/epoch, "
+            f"{train_frequency} steps/fit, {test_samples} test samples"
         )
+
+        # Calculate logging frequency (log ~10 times during training, but at least once)
+        log_frequency = max(1, n_epochs // 10)
 
         for epoch in range(1, n_epochs + 1):
             # Learning step
@@ -161,16 +256,33 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             J_curr, dJ_curr = self._evaluate(test_samples, eval_policy_param)
             J_list.append(J_curr)
             dJ_list.append(dJ_curr)
+
+            if epoch % log_frequency == 0 or epoch == n_epochs:
+                exp_param = self._exploration_policy_param.get_value()
+                self._logger.info(
+                    f"Epoch {epoch}/{n_epochs}: J={J_curr:.3f}, dJ={dJ_curr:.3f}, exp_param={exp_param:.3f}"
+                )
+
             if wandb_active:
                 self._log_to_wandb(J=J_curr, dJ=dJ_curr, step=epoch)
 
         if wandb_active:
             wandb.finish()
 
-        self._logger.info("Training completed")
+        self._logger.info(f"Training completed: Final J={J_list[-1]:.3f}, dJ={dJ_list[-1]:.3f}")
         return J_list, dJ_list
 
     def _evaluate(self, test_samples: int, eval_exploration_param: Parameter) -> Tuple[float, float]:
+        """Performs a deterministic evaluation of the current policy.
+
+        Args:
+            test_samples (int): Number of steps to simulate for evaluation.
+            eval_exploration_param (Parameter): Fixed parameter for evaluation
+                (usually 0.0 for epsilon-greedy).
+
+        Returns:
+            Tuple[float, float]: A pair of (Undiscounted Return, Discounted Return).
+        """
         # Set deterministic policy for evaluation
         self._configure_policy_exploration_behavior(eval_exploration_param)
 
@@ -182,7 +294,13 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         return J, dJ
 
     def _log_to_wandb(self, J: float, dJ: float, step: int) -> None:
-        """Log metrics to wandb."""
+        """Logs scalar metrics to WandB.
+
+        Args:
+            J (float): Average undiscounted return.
+            dJ (float): Average discounted return.
+            step (int): Current epoch number.
+        """
         group_name = self._wandb_conf.get("group")
         wandb.log(
             {
@@ -194,8 +312,15 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         )
 
     def save_agent(self, path: str) -> None:
-        if self._agent is None:
-            raise ExperimentError("agent not initialized")
+        """Persists the agent state to disk.
+
+        Args:
+            path (str): The target file path. The extension '.msh' will be
+                appended if missing.
+
+        Raises:
+            ExperimentError: If the serialization fails.
+        """
 
         if not path.endswith(".msh"):
             path = f"{path}.msh"
@@ -204,4 +329,5 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             self._agent.save(path)
             self._logger.info(f"Agent saved successfully to {path}")
         except Exception as e:
-            raise ExperimentError(f"Failed to save agent to {path}: {e}")
+            self._logger.error(f"Failed to save agent to '{path}': {e}")
+            raise ExperimentError(f"Failed to save agent to {path}: {e}") from e

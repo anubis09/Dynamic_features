@@ -18,7 +18,8 @@ from .wandb_config import WandbConfig
 
 # config store are used to load predefined configurations at runtime.
 # Usually Config is preloaded by Hydra main, but config expects
-# a specified environment config and algorithm config. Config store allows us to register these configurations.
+# a specified environment config and algorithm config.
+# Config store allows us to register these configurations.
 def register_configs():
     cs = ConfigStore.instance()
 

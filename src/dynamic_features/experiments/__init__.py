@@ -1,4 +1,4 @@
 from .abstract_experiment import AbstractExp
-from .dqn import DQN_exp
+from .dqn import DqnExperiment
 
-__all__ = ["AbstractExp", "DQN_exp"]
+__all__ = ["AbstractExp", "DqnExperiment"]
