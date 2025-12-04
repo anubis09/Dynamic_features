@@ -1,12 +1,6 @@
 from dataclasses import dataclass, field
 
-from .experiment_conf import (
-    AgentConfig,
-    ExperimentConfig,
-    Losses,
-    PolicyConfig,
-    TrainingConfig,
-)
+from .experiment_conf import AgentConfig, ExperimentConfig, Losses, Optimizers, PolicyConfig, TrainingConfig
 
 
 @dataclass
@@ -24,13 +18,14 @@ class DqnConfig(ExperimentConfig):
     )
     agent: AgentConfig = field(
         default_factory=lambda: DqnAgentConfig(
-            initial_replay_size=250,
-            max_replay_size=10_000,
-            target_update_frequency=300,
+            initial_replay_size=1_000,
+            max_replay_size=50_000,
+            target_update_frequency=500,
             batch_size=32,
             n_features=100,
             loss=Losses.MSE,
-            learning_rate=3e-4,
+            optimizer=Optimizers.RMSPROP,
+            learning_rate=2.5e-4,
         )
     )
     train: TrainingConfig = field(

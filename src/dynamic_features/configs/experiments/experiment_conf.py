@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, TypeVar
 
+import torch
 import torch.nn.functional as F
 
 
@@ -14,6 +15,19 @@ class Loss:
 class Losses(Enum):
     MSE = Loss(name="mse_loss", function=F.mse_loss)
     SL1 = Loss(name="smooth_l1_loss", function=F.smooth_l1_loss)
+    HUBER = Loss(name="huber_loss", function=F.huber_loss)
+
+
+@dataclass
+class Optimizer:
+    name: str
+    cls: Callable
+
+
+class Optimizers(Enum):
+    ADAM = Optimizer(name="adam", cls=torch.optim.Adam)
+    ADAMW = Optimizer(name="adamw", cls=torch.optim.AdamW)
+    RMSPROP = Optimizer(name="rmsprop", cls=torch.optim.RMSprop)
 
 
 @dataclass
@@ -28,6 +42,7 @@ class AgentConfig:
     batch_size: int
     n_features: int
     loss: Losses
+    optimizer: Optimizers
     learning_rate: float
 
 

@@ -5,7 +5,6 @@ from mushroom_rl.algorithms.value import DQN
 from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import Parameter
-from torch.optim.adam import Adam
 from typing_extensions import override
 
 from dynamic_features.configs import DqnAgentConfig, EnvConfig, PolicyConfig, TrainingConfig, WandbConfig
@@ -78,15 +77,17 @@ class DqnExperiment(AbstractExp[DqnAgentConfig]):
         This sets up the optimizer, loss function, and network architecture based
         on the agent configuration and environment info.
         """
-        loss = self._agent_config.loss.value.function
 
         # Approximator
         input_shape = self._mdp.info.observation_space.shape
         output_shape = self._mdp.info.action_space.size
         approximator_params = dict(
             network=Linear,
-            optimizer={"class": Adam, "params": {"lr": self._agent_config.learning_rate}},
-            loss=loss,
+            optimizer={
+                "class": self._agent_config.optimizer.value.cls,
+                "params": {"lr": self._agent_config.learning_rate},
+            },
+            loss=self._agent_config.loss.value.function,
             n_features=self._agent_config.n_features,
             input_shape=input_shape,
             output_shape=output_shape,
