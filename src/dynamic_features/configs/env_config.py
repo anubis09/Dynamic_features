@@ -31,7 +31,7 @@ class MountainCarEnvConfig(EnvConfig):
 @dataclass
 class LunarLanderEnvConfig(EnvConfig):
     name: str = "LunarLander-v2"
-    core: EnvCore = field(default_factory=lambda: EnvCore(gamma=0.99, horizon=1000))
+    core: EnvCore = field(default_factory=lambda: EnvCore(gamma=0.99, horizon=None))
     rainbow: RainbowParams = field(default_factory=lambda: RainbowParams(v_min=-1_000, v_max=300))
 
 
