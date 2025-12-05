@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import torch
 import torch.nn.functional as F
@@ -58,5 +58,5 @@ TAgentConfig = TypeVar("TAgentConfig", bound=AgentConfig)
 class ExperimentConfig:
     _target_: str
     policy: PolicyConfig
-    agent: AgentConfig
+    agent: Any  # don't like this but hydra doesn't support generic and protocol
     train: TrainingConfig
