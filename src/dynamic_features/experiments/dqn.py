@@ -84,10 +84,10 @@ class DqnExperiment(AbstractExp[DqnAgentConfig]):
         approximator_params = dict(
             network=Linear,
             optimizer={
-                "class": self._agent_config.optimizer.value.cls,
+                "class": self._agent_config.optimizer.get_class(),
                 "params": {"lr": self._agent_config.learning_rate},
             },
-            loss=self._agent_config.loss.value.function,
+            loss=self._agent_config.loss.get_function(),
             n_features=self._agent_config.n_features,
             input_shape=input_shape,
             output_shape=output_shape,

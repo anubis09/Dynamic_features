@@ -1,33 +1,29 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 import torch
 import torch.nn.functional as F
 
 
-@dataclass
-class Loss:
-    name: str
-    function: Callable
-
-
 class Losses(Enum):
-    MSE = Loss(name="mse_loss", function=F.mse_loss)
-    SL1 = Loss(name="smooth_l1_loss", function=F.smooth_l1_loss)
-    HUBER = Loss(name="huber_loss", function=F.huber_loss)
+    MSE = "mse_loss"
+    SL1 = "smooth_l1_loss"
+    HUBER = "huber_loss"
 
-
-@dataclass
-class Optimizer:
-    name: str
-    cls: Callable
+    def get_function(self):
+        """Resolve to actual PyTorch function"""
+        return getattr(F, self.value)
 
 
 class Optimizers(Enum):
-    ADAM = Optimizer(name="adam", cls=torch.optim.Adam)
-    ADAMW = Optimizer(name="adamw", cls=torch.optim.AdamW)
-    RMSPROP = Optimizer(name="rmsprop", cls=torch.optim.RMSprop)
+    ADAM = "Adam"
+    ADAMW = "AdamW"
+    RMSPROP = "RMSprop"
+
+    def get_class(self):
+        """Resolve to actual optimizer class"""
+        return getattr(torch.optim, self.value)
 
 
 @dataclass

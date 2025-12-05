@@ -1,5 +1,13 @@
 from .dqn import DqnAgentConfig, DqnConfig
-from .experiment_conf import AgentConfig, ExperimentConfig, Loss, Losses, PolicyConfig, TAgentConfig, TrainingConfig
+from .experiment_conf import (
+    AgentConfig,
+    ExperimentConfig,
+    Losses,
+    Optimizers,
+    PolicyConfig,
+    TAgentConfig,
+    TrainingConfig,
+)
 
 __all__ = [
     "DqnAgentConfig",
@@ -10,5 +18,5 @@ __all__ = [
     "TAgentConfig",
     "TrainingConfig",
     "Losses",
-    "Loss",
+    "Optimizers",
 ]
