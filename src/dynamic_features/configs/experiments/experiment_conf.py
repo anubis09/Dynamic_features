@@ -45,7 +45,6 @@ class AgentConfig:
 @dataclass
 class TrainingConfig:
     n_epochs: int
-    n_steps: int
     test_episodes: int
     final_test_episodes: int  # this is provided because we want better precision for the last evaluation.
     eval_policy_param: float

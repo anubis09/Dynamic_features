@@ -237,7 +237,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             self._log_to_wandb(J=initial_J, dJ=initial_dJ, step=0)
 
         n_epochs = self._training_config.n_epochs
-        n_steps = self._training_config.n_steps
+        n_steps = self._mdp_config.budget // n_epochs
         train_frequency = self._training_config.train_frequency
 
         self._logger.info(

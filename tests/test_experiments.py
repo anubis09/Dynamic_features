@@ -20,11 +20,11 @@ def test_experiments(environment, algorithm):
             config_name="config",
             overrides=[
                 f"environment={environment}",
+                "environment.budget=20",
                 f"algorithm={algorithm}",
                 "algorithm.train.n_epochs=1",
-                "algorithm.train.n_steps=10",
                 "algorithm.train.test_episodes=2",
-                "algorithm.train.final_test_episodes=20",
+                "algorithm.train.final_test_episodes=10",
                 "wandb_log=False",
             ],
         )
