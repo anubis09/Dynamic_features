@@ -23,7 +23,8 @@ def test_experiments(environment, algorithm):
                 f"algorithm={algorithm}",
                 "algorithm.train.n_epochs=1",
                 "algorithm.train.n_steps=10",
-                "algorithm.train.test_samples=100",
+                "algorithm.train.test_episodes=2",
+                "algorithm.train.final_test_episodes=20",
                 "wandb_log=False",
             ],
         )

@@ -5,12 +5,12 @@ from logging import Logger
 from typing import Generic, List, Tuple
 
 import numpy as np
+import wandb
 from mushroom_rl.core import Core
 from mushroom_rl.environments import Gym
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
 
-import wandb
 from dynamic_features.configs import EnvConfig, PolicyConfig, TAgentConfig, TrainingConfig, WandbConfig
 
 from .exceptions import ConfigurationError, ExperimentError
@@ -225,9 +225,10 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         dJ_list = []
 
         eval_policy_param = Parameter(self._training_config.eval_policy_param)
-        test_samples = self._training_config.test_samples
+        test_episodes = self._training_config.test_episodes
+        final_test_episodes = self._training_config.final_test_episodes
 
-        initial_J, initial_dJ = self._evaluate(test_samples, eval_policy_param)
+        initial_J, initial_dJ = self._evaluate(test_episodes, eval_policy_param)
         J_list.append(initial_J)
         dJ_list.append(initial_dJ)
         self._logger.info(f"Initial evaluation: J={initial_J:.3f}, dJ={initial_dJ:.3f}")
@@ -241,7 +242,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
 
         self._logger.info(
             f"Starting training: {n_epochs} epochs, {n_steps} steps/epoch, "
-            f"{train_frequency} steps/fit, {test_samples} test samples"
+            f"{train_frequency} steps/fit, {test_episodes} test episodes"
         )
 
         # Calculate logging frequency (log ~10 times during training, but at least once)
@@ -252,8 +253,11 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             self._configure_policy_exploration_behavior(self._exploration_policy_param)
             self._core.learn(n_steps=n_steps, n_steps_per_fit=train_frequency)
 
+            if epoch == n_epochs:
+                # if training is over, we want to evaluate with a final test episodes.
+                test_episodes = final_test_episodes
             # Evaluation step
-            J_curr, dJ_curr = self._evaluate(test_samples, eval_policy_param)
+            J_curr, dJ_curr = self._evaluate(test_episodes, eval_policy_param)
             J_list.append(J_curr)
             dJ_list.append(dJ_curr)
 
@@ -272,11 +276,11 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._logger.info(f"Training completed: Final J={J_list[-1]:.3f}, dJ={dJ_list[-1]:.3f}")
         return J_list, dJ_list
 
-    def _evaluate(self, test_samples: int, eval_exploration_param: Parameter) -> Tuple[float, float]:
+    def _evaluate(self, test_episodes: int, eval_exploration_param: Parameter) -> Tuple[float, float]:
         """Performs a deterministic evaluation of the current policy.
 
         Args:
-            test_samples (int): Number of steps to simulate for evaluation.
+            test_episodes (int): Number of episodes to simulate for evaluation.
             eval_exploration_param (Parameter): Fixed parameter for evaluation
                 (usually 0.0 for epsilon-greedy).
 
@@ -286,7 +290,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         # Set deterministic policy for evaluation
         self._configure_policy_exploration_behavior(eval_exploration_param)
 
-        dataset = self._core.evaluate(n_steps=test_samples, render=False)
+        dataset = self._core.evaluate(n_episodes=test_episodes, render=False)
 
         J = np.mean(compute_J(dataset, gamma=1.0)).item()  # Undiscounted return
         dJ = np.mean(compute_J(dataset, gamma=self._gamma)).item()  # Discounted return

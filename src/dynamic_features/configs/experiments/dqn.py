@@ -30,6 +30,11 @@ class DqnConfig(ExperimentConfig):
     )
     train: TrainingConfig = field(
         default_factory=lambda: TrainingConfig(
-            n_epochs=100, n_steps=20_000, test_samples=10_000, eval_policy_param=0, train_frequency=1
+            n_epochs=100,
+            n_steps=10_000,
+            test_episodes=20,
+            final_test_episodes=100,
+            eval_policy_param=0,
+            train_frequency=1,
         )
     )
