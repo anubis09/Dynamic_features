@@ -10,7 +10,7 @@ from dynamic_features.launcher import experiment
 register_configs()
 
 
-@pytest.mark.parametrize("environment", ["Acrobot", "MountainCar", "LunarLander"])
+@pytest.mark.parametrize("environment", ["Acrobot", "MountainCar", "LunarLander", "CartPole"])
 @pytest.mark.parametrize("algorithm", ["dqn"])
 def test_experiments(environment, algorithm):
     """Test the experiment function directly using Hydra context."""

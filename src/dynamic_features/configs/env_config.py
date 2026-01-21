@@ -39,6 +39,14 @@ class AcrobotEnvConfig(EnvConfig):
 
 
 @dataclass
+class CartPoleEnvConfig(EnvConfig):
+    name: str = "CartPole-v1"
+    budget: int = 600_000
+    core: EnvCore = field(default_factory=lambda: EnvCore(gamma=0.99, horizon=None))
+    rainbow: RainbowParams = field(default_factory=lambda: RainbowParams(v_min=-600, v_max=300))
+
+
+@dataclass
 class LunarLanderEnvConfig(EnvConfig):
     name: str = "LunarLander-v2"
     budget: int = 1_000_000

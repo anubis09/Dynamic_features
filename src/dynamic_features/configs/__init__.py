@@ -1,7 +1,15 @@
 from hydra.core.config_store import ConfigStore
 
 from .config import Config
-from .env_config import AcrobotEnvConfig, EnvConfig, EnvCore, LunarLanderEnvConfig, MountainCarEnvConfig, RainbowParams
+from .env_config import (
+    AcrobotEnvConfig,
+    CartPoleEnvConfig,
+    EnvConfig,
+    EnvCore,
+    LunarLanderEnvConfig,
+    MountainCarEnvConfig,
+    RainbowParams,
+)
 from .experiments import (
     AgentConfig,
     DqnAgentConfig,
@@ -26,6 +34,7 @@ def register_configs():
     cs.store(name="MountainCar", group="environment", node=MountainCarEnvConfig)
     cs.store(name="LunarLander", group="environment", node=LunarLanderEnvConfig)
     cs.store(name="Acrobot", group="environment", node=AcrobotEnvConfig)
+    cs.store(name="CartPole", group="environment", node=CartPoleEnvConfig)
 
     cs.store(name="dqn", group="algorithm", node=DqnConfig)
 
@@ -40,6 +49,7 @@ __all__ = [
     "AcrobotEnvConfig",
     "LunarLanderEnvConfig",
     "MountainCarEnvConfig",
+    "CartPoleEnvConfig",
     "RainbowParams",
     "AgentConfig",
     "DqnAgentConfig",
