@@ -52,3 +52,11 @@ class LunarLanderEnvConfig(EnvConfig):
     budget: int = 1_000_000
     core: EnvCore = field(default_factory=lambda: EnvCore(gamma=0.99, horizon=None))
     rainbow: RainbowParams = field(default_factory=lambda: RainbowParams(v_min=-1_000, v_max=300))
+
+
+@dataclass
+class PuddleWorldEnvConfig(EnvConfig):
+    name: str = "PuddleWorld"
+    budget: int = 600_000
+    core: EnvCore = field(default_factory=lambda: EnvCore(gamma=0.99, horizon=500))
+    rainbow: RainbowParams = field(default_factory=lambda: RainbowParams(v_min=-500, v_max=300))

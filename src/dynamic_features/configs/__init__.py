@@ -8,6 +8,7 @@ from .env_config import (
     EnvCore,
     LunarLanderEnvConfig,
     MountainCarEnvConfig,
+    PuddleWorldEnvConfig,
     RainbowParams,
 )
 from .experiments import (
@@ -35,6 +36,7 @@ def register_configs():
     cs.store(name="LunarLander", group="environment", node=LunarLanderEnvConfig)
     cs.store(name="Acrobot", group="environment", node=AcrobotEnvConfig)
     cs.store(name="CartPole", group="environment", node=CartPoleEnvConfig)
+    cs.store(name="PuddleWorld", group="environment", node=PuddleWorldEnvConfig)
 
     cs.store(name="dqn", group="algorithm", node=DqnConfig)
 
@@ -50,6 +52,7 @@ __all__ = [
     "LunarLanderEnvConfig",
     "MountainCarEnvConfig",
     "CartPoleEnvConfig",
+    "PuddleWorldEnvConfig",
     "RainbowParams",
     "AgentConfig",
     "DqnAgentConfig",

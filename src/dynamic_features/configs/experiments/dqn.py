@@ -32,7 +32,7 @@ class DqnConfig(ExperimentConfig):
         default_factory=lambda: TrainingConfig(
             n_epochs=100,
             # the number of steps used for training in each epoch is give by the env budget / n_epochs.
-            test_episodes=20,  # episode tested after every epoch of training
+            test_episodes=15,  # episode tested after every epoch of training
             final_test_episodes=100,
             eval_policy_param=0,
             train_frequency=1,

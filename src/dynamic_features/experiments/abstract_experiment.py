@@ -145,7 +145,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             )
             self._mdp.seed(self._seed)
             self._logger.info(
-                f"Initialized environment: {mdp_name} (horizon={self._mdp_config.core.horizon}, γ={self._gamma})"
+                f"Initialized environment: {mdp_name} (horizon={self._mdp._mdp_info.horizon}, γ={self._gamma})"
             )
         except Exception as e:
             self._logger.error(f"Failed to create environment '{mdp_name}': {e}")
