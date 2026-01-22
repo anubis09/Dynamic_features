@@ -6,8 +6,7 @@ from typing import Generic, List, Tuple
 
 import numpy as np
 import wandb
-from mushroom_rl.core import Core
-from mushroom_rl.environments import Gym
+from mushroom_rl.core import Core, Environment
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
 
@@ -141,7 +140,9 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         """
         mdp_name = self._mdp_config.name
         try:
-            self._mdp: Gym = Gym(mdp_name, horizon=self._mdp_config.core.horizon, gamma=self._gamma)
+            self._mdp: Environment = Environment.make(
+                mdp_name, horizon=self._mdp_config.core.horizon, gamma=self._gamma
+            )
             self._mdp.seed(self._seed)
             self._logger.info(
                 f"Initialized environment: {mdp_name} (horizon={self._mdp_config.core.horizon}, γ={self._gamma})"
