@@ -4,7 +4,7 @@ from typing import Any, List
 from omegaconf import MISSING
 
 from dynamic_features.configs.experiments.experiment_conf import ExperimentConfig
-from dynamic_features.configs.wandb_config import WandbConfig
+from dynamic_features.configs.wandb_config import WandbConfig, WandbMode
 
 from .env_config import EnvConfig
 
@@ -35,6 +35,7 @@ class Config:
             project="Dynamic_Features",
             entity="Dynamic_Tiles_Thesis",
             job_type="",
+            mode=WandbMode.OFFLINE,
             group="${environment.name}",
             name="seed_${seed}",
             config={},
