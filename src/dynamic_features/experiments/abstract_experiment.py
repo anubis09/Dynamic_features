@@ -98,9 +98,17 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._policy_config = policy
         self._agent_config = agent
         self._training_config = train
+        wandb_dict = asdict(wandb)
         self._wandb_conf = {
-            **asdict(wandb),
-            "config": {"agent": asdict(agent), "policy": asdict(policy), "train": asdict(train), "env": asdict(env)},
+            **wandb_dict,
+            "config": {
+                # This is to not overwrite possible values of config.
+                **wandb_dict.get("config", {}),
+                "agent": asdict(agent),
+                "policy": asdict(policy),
+                "train": asdict(train),
+                "env": asdict(env),
+            },
         }
 
         self._seed = seed

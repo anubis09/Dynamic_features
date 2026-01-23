@@ -38,6 +38,6 @@ class Config:
             mode=WandbMode.OFFLINE,
             group="${environment.name}",
             name="seed_${seed}",
-            config={},
+            config={"sweep_id": ""},
         )
     )
