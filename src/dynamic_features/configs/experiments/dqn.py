@@ -18,14 +18,14 @@ class DqnConfig(ExperimentConfig):
     )
     agent: DqnAgentConfig = field(
         default_factory=lambda: DqnAgentConfig(
-            initial_replay_size=1_000,
+            initial_replay_size=10_000,
             max_replay_size=50_000,
-            target_update_frequency=500,
-            batch_size=32,
-            n_features=100,
-            loss=Losses.MSE,
-            optimizer=Optimizers.RMSPROP,
-            learning_rate=2.5e-4,
+            target_update_frequency=100,
+            batch_size=64,
+            n_features=64,
+            loss=Losses.HUBER,
+            optimizer=Optimizers.ADAM,
+            learning_rate=1e-4,
         )
     )
     train: TrainingConfig = field(

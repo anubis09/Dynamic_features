@@ -15,3 +15,16 @@ python launcher.py --multirun seed=0,1,2 environment=Acrobot,PuddleWorld,Mountai
 ```bash
 wandb sync --include-offline --sync-all path/to/wandb
 ```
+
+## Hyperparameter Grid Search in practice
+### DQN
+```bash
+python launcher.py --multirun seed=0,1,2 \
+environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
+algorithm.policy.final_exp_frame=15_000,30_0000 \
+algorithm.agent.target_update_frequency=100,500 \
+algorithm.agent.batch_size=64,128 \
+algorithm.agent.n_features=64,128 \
+algorithm.agent.learning_rate=1e-4,5e-4,1e-3 \
+wandb_log=True wandb.job_type="DQN_sweep" wandb.mode="ONLINE"
+```
