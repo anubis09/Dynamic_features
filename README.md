@@ -9,5 +9,9 @@ To launch an experiment with one of the supported RL algorithms and environments
 For example, to launch a multirun DQN experiment with three seed on Acrobot, run the following command:
 
 ```bash
-python launcher.py --multirun seed=0,1,2 environment=Acrobot wandb_log=True wandb.job_type="DQN_Run"
+python launcher.py --multirun seed=0,1,2 environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole wandb_log=True wandb.job_type="DQN_Run" wandb.mode="ONLINE"
+```
+## How to log the offline run to wandb
+```bash
+wandb sync --include-offline --sync-all path/to/wandb
 ```
