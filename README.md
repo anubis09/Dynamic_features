@@ -26,5 +26,5 @@ algorithm.agent.target_update_frequency=100,500 \
 algorithm.agent.batch_size=64,128 \
 algorithm.agent.n_features=64,128 \
 algorithm.agent.learning_rate=1e-4,5e-4,1e-3 \
-wandb_log=True wandb.job_type="DQN_sweep" wandb.mode="ONLINE"
+wandb_log=True wandb.job_type="DQN_sweep"
 ```
