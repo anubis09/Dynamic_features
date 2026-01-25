@@ -11,7 +11,7 @@ register_configs()
 
 
 @pytest.mark.parametrize("environment", ["Acrobot", "MountainCar", "LunarLander", "CartPole", "PuddleWorld"])
-@pytest.mark.parametrize("algorithm", ["dqn"])
+@pytest.mark.parametrize("algorithm", ["dqn", "sarsa_rec"])
 def test_experiments(environment, algorithm):
     """Test the experiment function directly using Hydra context."""
 
@@ -22,9 +22,9 @@ def test_experiments(environment, algorithm):
                 f"environment={environment}",
                 "environment.budget=20",
                 f"algorithm={algorithm}",
-                "algorithm.train.n_epochs=1",
-                "algorithm.train.test_episodes=2",
-                "algorithm.train.final_test_episodes=15",
+                "algorithm.train.n_epochs=5",
+                "algorithm.train.test_episodes=3",
+                "algorithm.train.final_test_episodes=5",
                 "wandb_log=False",
             ],
         )

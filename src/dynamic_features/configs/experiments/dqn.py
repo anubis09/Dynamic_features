@@ -8,6 +8,10 @@ class DqnAgentConfig(AgentConfig):
     initial_replay_size: int
     max_replay_size: int
     target_update_frequency: int
+    batch_size: int
+    n_features: int
+    loss: Losses
+    optimizer: Optimizers
 
 
 @dataclass

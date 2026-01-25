@@ -9,7 +9,7 @@ from dynamic_features.configs.wandb_config import WandbConfig, WandbMode
 from .env_config import EnvConfig
 
 defaults = [
-    {"algorithm": "dqn"},
+    {"algorithm": MISSING},
     # Forces the user to specify an environment config; the program will fail if omitted.
     {"environment": MISSING},
     # overrides the default launcher with joblib
