@@ -34,5 +34,6 @@ class SarsaRecConfig(ExperimentConfig):
             final_test_episodes=100,
             eval_policy_param=0,
             train_frequency=1,
+            log_frequency=10,
         )
     )

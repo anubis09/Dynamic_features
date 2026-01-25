@@ -215,7 +215,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         This method runs the experiment for `n_epochs`. In each epoch, it:
         1. Updates the exploration parameter.
         2. Learns for `n_steps` (divided by `train_frequency` fits).
-        3. Evaluates the agent on test samples.
+        3. Evaluates the agent on test episodes.
         4. Logs metrics to WandB (if enabled).
 
         Args:
@@ -254,8 +254,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             f"{train_frequency} steps/fit, {test_episodes} test episodes"
         )
 
-        # Calculate logging frequency (log ~10 times during training, but at least once)
-        log_frequency = max(1, n_epochs // 10)
+        log_frequency = self._training_config.log_frequency
 
         for epoch in range(1, n_epochs + 1):
             # Learning step

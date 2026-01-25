@@ -45,6 +45,7 @@ class TrainingConfig:
     final_test_episodes: int  # this is provided because we want better precision for the last evaluation.
     eval_policy_param: float
     train_frequency: int
+    log_frequency: int  # frequency for training logging. if 5, it will log training details every 5 epoch.
 
 
 TAgentConfig = TypeVar("TAgentConfig", bound=AgentConfig)
