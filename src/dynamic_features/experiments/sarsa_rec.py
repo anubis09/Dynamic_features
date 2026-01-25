@@ -95,12 +95,14 @@ class SarsaRecExperiment(AbstractExp[SarsaRecAgentConfig]):
             f"LR={self._agent_config.learning_rate}, Lambda={self._agent_config.lambda_coeff}"
         )
 
+        scaled_learning_rate = Parameter(self._agent_config.learning_rate / self._n_tilings)
+
         # Agent
         self._agent: TrueOnlineSARSALambda = TrueOnlineSARSALambda(
             self._mdp.info,
             self._policy,
             approximator_params=approximator_params,
             features=self._features,
-            learning_rate=Parameter(self._agent_config.learning_rate),
+            learning_rate=scaled_learning_rate,
             lambda_coeff=self._agent_config.lambda_coeff,
         )

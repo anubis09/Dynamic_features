@@ -23,7 +23,8 @@ class SarsaRecConfig(ExperimentConfig):
             # so if mdp state dimension is 2 we will have a 5x5 grid.
             n_tiles=5,
             lambda_coeff=0.99,
-            learning_rate=1e-2,
+            # in this case we mean the learning_rate pre scaling.
+            learning_rate=0.1,
         )
     )
     train: TrainingConfig = field(
