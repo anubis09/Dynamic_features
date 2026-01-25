@@ -21,10 +21,23 @@ wandb sync --include-offline --sync-all path/to/wandb
 ```bash
 python launcher.py --multirun seed=0,1,2 \
 environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
+algorithm=dqn \
 algorithm.policy.final_exp_frame=15_000,30_0000 \
 algorithm.agent.target_update_frequency=100,500 \
 algorithm.agent.batch_size=64,128 \
 algorithm.agent.n_features=64,128 \
 algorithm.agent.learning_rate=1e-4,5e-4,1e-3 \
 wandb_log=True wandb.job_type="DQN_sweep"
+```
+
+### Sarsa Lambda with Rec Tiles
+```bash
+python launcher.py --multirun seed=0,1,2 \
+environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
+algorithm=sarsa_lambda_rec \
+algorithm.policy.final_exp_frame=15_000,30_0000 \
+algorithm.agent.n_tilings=8,16,32 \
+algorithm.agent.n_tiles=4,8 \
+algorithm.agent.lambda_coeff=0.5,0.75,0.9,0.99 \
+wandb_log=True wandb.job_type="sarsa_lambda_rec_sweep"
 ```
