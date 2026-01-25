@@ -35,10 +35,6 @@ class PolicyConfig:
 
 @dataclass
 class AgentConfig:
-    batch_size: int
-    n_features: int
-    loss: Losses
-    optimizer: Optimizers
     learning_rate: float
 
 
