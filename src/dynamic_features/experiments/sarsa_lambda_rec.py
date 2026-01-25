@@ -7,19 +7,19 @@ from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import Parameter
 from typing_extensions import override
 
-from dynamic_features.configs import EnvConfig, PolicyConfig, SarsaRecAgentConfig, TrainingConfig, WandbConfig
+from dynamic_features.configs import EnvConfig, PolicyConfig, SarsaLambdaRecAgentConfig, TrainingConfig, WandbConfig
 
 from .abstract_experiment import AbstractExp
 
 
 @final
-class SarsaRecExperiment(AbstractExp[SarsaRecAgentConfig]):
+class SarsaLambdaRecExperiment(AbstractExp[SarsaLambdaRecAgentConfig]):
     __slots__ = ["_n_tilings", "_n_tiles", "_features"]
 
     def __init__(
         self,
         policy: PolicyConfig,
-        agent: SarsaRecAgentConfig,
+        agent: SarsaLambdaRecAgentConfig,
         train: TrainingConfig,
         env: EnvConfig,
         wandb: WandbConfig,

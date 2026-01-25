@@ -4,20 +4,20 @@ from .experiment_conf import AgentConfig, ExperimentConfig, PolicyConfig, Traini
 
 
 @dataclass
-class SarsaRecAgentConfig(AgentConfig):
+class SarsaLambdaRecAgentConfig(AgentConfig):
     n_tilings: int
     n_tiles: int
     lambda_coeff: float
 
 
 @dataclass
-class SarsaRecConfig(ExperimentConfig):
-    _target_: str = "dynamic_features.experiments.sarsa_rec.SarsaRecExperiment"
+class SarsaLambdaRecConfig(ExperimentConfig):
+    _target_: str = "dynamic_features.experiments.sarsa_lambda_rec.SarsaLambdaRecExperiment"
     policy: PolicyConfig = field(
         default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=10_000)
     )
-    agent: SarsaRecAgentConfig = field(
-        default_factory=lambda: SarsaRecAgentConfig(
+    agent: SarsaLambdaRecAgentConfig = field(
+        default_factory=lambda: SarsaLambdaRecAgentConfig(
             n_tilings=32,
             # n_tiles = 5 means that in each dimension of the mdp it will have 5.
             # so if mdp state dimension is 2 we will have a 5x5 grid.

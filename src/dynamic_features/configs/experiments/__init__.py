@@ -8,13 +8,13 @@ from .experiment_conf import (
     TAgentConfig,
     TrainingConfig,
 )
-from .sarsa_rec import SarsaRecAgentConfig, SarsaRecConfig
+from .sarsa_lambda_rec import SarsaLambdaRecAgentConfig, SarsaLambdaRecConfig
 
 __all__ = [
     "DqnAgentConfig",
     "DqnConfig",
-    "SarsaRecAgentConfig",
-    "SarsaRecConfig",
+    "SarsaLambdaRecAgentConfig",
+    "SarsaLambdaRecConfig",
     "AgentConfig",
     "ExperimentConfig",
     "PolicyConfig",
