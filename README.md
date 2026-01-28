@@ -36,8 +36,8 @@ python launcher.py --multirun seed=0,1,2 \
 environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
 algorithm=sarsa_lambda_rec \
 algorithm.policy.final_exp_frame=15_000,30_0000 \
-algorithm.agent.n_tilings=8,16,32 \
-algorithm.agent.n_tiles=4,8 \
+algorithm.agent.n_tilings=8,16,24 \
+algorithm.agent.n_tiles=3,5 \
 algorithm.agent.lambda_coeff=0.5,0.75,0.9,0.99 \
 wandb_log=True wandb.job_type="sarsa_lambda_rec_sweep"
 ```
