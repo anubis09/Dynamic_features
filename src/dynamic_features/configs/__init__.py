@@ -19,6 +19,8 @@ from .experiments import (
     Losses,
     Optimizers,
     PolicyConfig,
+    RainbowAgentConfig,
+    RainbowConfig,
     SarsaLambdaRecAgentConfig,
     SarsaLambdaRecConfig,
     TAgentConfig,
@@ -41,6 +43,7 @@ def register_configs():
     cs.store(name="PuddleWorld", group="environment", node=PuddleWorldEnvConfig)
 
     cs.store(name="dqn", group="algorithm", node=DqnConfig)
+    cs.store(name="rainbow", group="algorithm", node=RainbowConfig)
     cs.store(name="sarsa_lambda_rec", group="algorithm", node=SarsaLambdaRecConfig)
 
     cs.store(name="config", node=Config)
@@ -62,6 +65,8 @@ __all__ = [
     "DqnConfig",
     "SarsaLambdaRecAgentConfig",
     "SarsaLambdaRecConfig",
+    "RainbowConfig",
+    "RainbowAgentConfig",
     "ExperimentConfig",
     "Losses",
     "Optimizers",

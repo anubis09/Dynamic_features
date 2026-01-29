@@ -11,7 +11,7 @@ register_configs()
 
 
 @pytest.mark.parametrize("environment", ["Acrobot", "MountainCar", "LunarLander", "CartPole", "PuddleWorld"])
-@pytest.mark.parametrize("algorithm", ["dqn", "sarsa_lambda_rec"])
+@pytest.mark.parametrize("algorithm", ["dqn", "rainbow", "sarsa_lambda_rec"])
 def test_experiments(environment, algorithm):
     """Test the experiment function directly using Hydra context."""
 

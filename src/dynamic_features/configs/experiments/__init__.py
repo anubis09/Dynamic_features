@@ -8,6 +8,7 @@ from .experiment_conf import (
     TAgentConfig,
     TrainingConfig,
 )
+from .rainbow import RainbowAgentConfig, RainbowConfig
 from .sarsa_lambda_rec import SarsaLambdaRecAgentConfig, SarsaLambdaRecConfig
 
 __all__ = [
@@ -15,6 +16,8 @@ __all__ = [
     "DqnConfig",
     "SarsaLambdaRecAgentConfig",
     "SarsaLambdaRecConfig",
+    "RainbowAgentConfig",
+    "RainbowConfig",
     "AgentConfig",
     "ExperimentConfig",
     "PolicyConfig",
