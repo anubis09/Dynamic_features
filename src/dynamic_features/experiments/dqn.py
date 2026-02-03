@@ -7,8 +7,8 @@ from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import Parameter
 from typing_extensions import override
 
+from dynamic_features.backbones.Linear import Linear
 from dynamic_features.configs import DqnAgentConfig, EnvConfig, PolicyConfig, TrainingConfig, WandbConfig
-from dynamic_features.models.Linear import Linear
 
 from .abstract_experiment import AbstractExp
 
