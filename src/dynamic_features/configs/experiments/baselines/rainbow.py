@@ -1,6 +1,12 @@
 from dataclasses import dataclass, field
 
-from .experiment_conf import AgentConfig, ExperimentConfig, Optimizers, PolicyConfig, TrainingConfig
+from dynamic_features.configs.experiments.experiment_conf import (
+    AgentConfig,
+    ExperimentConfig,
+    Optimizers,
+    PolicyConfig,
+    TrainingConfig,
+)
 
 
 @dataclass
@@ -21,7 +27,7 @@ class RainbowAgentConfig(AgentConfig):
 
 @dataclass
 class RainbowConfig(ExperimentConfig):
-    _target_: str = "dynamic_features.experiments.rainbow.RainbowExperiment"
+    _target_: str = "dynamic_features.experiments.RainbowExperiment"
     policy: PolicyConfig = field(
         default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=15_000)
     )

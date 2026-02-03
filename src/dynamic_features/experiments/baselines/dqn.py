@@ -9,8 +9,7 @@ from typing_extensions import override
 
 from dynamic_features.backbones.Linear import Linear
 from dynamic_features.configs import DqnAgentConfig, EnvConfig, PolicyConfig, TrainingConfig, WandbConfig
-
-from .abstract_experiment import AbstractExp
+from dynamic_features.experiments import AbstractExp
 
 
 @final

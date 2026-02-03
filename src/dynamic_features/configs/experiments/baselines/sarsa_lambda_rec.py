@@ -1,6 +1,11 @@
 from dataclasses import dataclass, field
 
-from .experiment_conf import AgentConfig, ExperimentConfig, PolicyConfig, TrainingConfig
+from dynamic_features.configs.experiments.experiment_conf import (
+    AgentConfig,
+    ExperimentConfig,
+    PolicyConfig,
+    TrainingConfig,
+)
 
 
 @dataclass
@@ -12,7 +17,7 @@ class SarsaLambdaRecAgentConfig(AgentConfig):
 
 @dataclass
 class SarsaLambdaRecConfig(ExperimentConfig):
-    _target_: str = "dynamic_features.experiments.sarsa_lambda_rec.SarsaLambdaRecExperiment"
+    _target_: str = "dynamic_features.experiments.SarsaLambdaRecExperiment"
     policy: PolicyConfig = field(
         default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=10_000)
     )

@@ -1,5 +1,4 @@
 from .abstract_experiment import AbstractExp
-from .dqn import DqnExperiment
-from .sarsa_lambda_rec import SarsaLambdaRecExperiment
+from .baselines import DqnExperiment, RainbowExperiment, SarsaLambdaRecExperiment
 
-__all__ = ["AbstractExp", "DqnExperiment", "SarsaLambdaRecExperiment"]
+__all__ = ["AbstractExp", "DqnExperiment", "SarsaLambdaRecExperiment", "RainbowExperiment"]

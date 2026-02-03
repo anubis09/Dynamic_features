@@ -1,4 +1,11 @@
-from .dqn import DqnAgentConfig, DqnConfig
+from .baselines import (
+    DqnAgentConfig,
+    DqnConfig,
+    RainbowAgentConfig,
+    RainbowConfig,
+    SarsaLambdaRecAgentConfig,
+    SarsaLambdaRecConfig,
+)
 from .experiment_conf import (
     AgentConfig,
     ExperimentConfig,
@@ -8,8 +15,6 @@ from .experiment_conf import (
     TAgentConfig,
     TrainingConfig,
 )
-from .rainbow import RainbowAgentConfig, RainbowConfig
-from .sarsa_lambda_rec import SarsaLambdaRecAgentConfig, SarsaLambdaRecConfig
 
 __all__ = [
     "DqnAgentConfig",

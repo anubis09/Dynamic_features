@@ -1,6 +1,13 @@
 from dataclasses import dataclass, field
 
-from .experiment_conf import AgentConfig, ExperimentConfig, Losses, Optimizers, PolicyConfig, TrainingConfig
+from dynamic_features.configs.experiments.experiment_conf import (
+    AgentConfig,
+    ExperimentConfig,
+    Losses,
+    Optimizers,
+    PolicyConfig,
+    TrainingConfig,
+)
 
 
 @dataclass
@@ -16,7 +23,7 @@ class DqnAgentConfig(AgentConfig):
 
 @dataclass
 class DqnConfig(ExperimentConfig):
-    _target_: str = "dynamic_features.experiments.dqn.DqnExperiment"
+    _target_: str = "dynamic_features.experiments.DqnExperiment"
     policy: PolicyConfig = field(
         default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=10_000)
     )
