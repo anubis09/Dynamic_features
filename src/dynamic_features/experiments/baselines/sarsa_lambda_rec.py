@@ -9,11 +9,12 @@ from typing_extensions import override
 
 from dynamic_features.configs import EnvConfig, PolicyConfig, SarsaLambdaRecAgentConfig, TrainingConfig, WandbConfig
 from dynamic_features.experiments import AbstractExp
+from dynamic_features.methods import HashingRecTilesFeatures
 
 
 @final
 class SarsaLambdaRecExperiment(AbstractExp[SarsaLambdaRecAgentConfig]):
-    __slots__ = ["_n_tilings", "_n_tiles", "_features"]
+    __slots__ = ["_n_tilings", "_n_tiles", "_hash_size", "_features"]
 
     def __init__(
         self,
@@ -33,10 +34,12 @@ class SarsaLambdaRecExperiment(AbstractExp[SarsaLambdaRecAgentConfig]):
         Attributes:
             _n_tilings (int): Number of tilings used in the tile coding feature representation.
             _n_tiles (int): Number of tiles per dimension in each tiling.
+            _hash_size (int): Size of the hash table for hashed tile coding features.
             _features (Features): Tile coding feature extractor for state representation.
         """
         self._n_tilings: int = agent.n_tilings
         self._n_tiles: int = agent.n_tiles
+        self._hash_size: int = agent.hash_size
         super().__init__(policy=policy, agent=agent, train=train, env=env, wandb=wandb, seed=seed)
 
     @override
@@ -61,15 +64,28 @@ class SarsaLambdaRecExperiment(AbstractExp[SarsaLambdaRecAgentConfig]):
         the tabular SARSA(λ) algorithm. The tilings cover the full range of
         the observation space as defined by the environment.
         """
-        low = self._mdp.info.observation_space.low
-        n_tiles = [self._n_tiles] * len(low)
-        tilings = Tiles.generate(
-            self._n_tilings,
-            n_tiles,
-            self._mdp.info.observation_space.low,
-            self._mdp.info.observation_space.high,
-        )
-        self._features = Features(tilings=tilings)
+        lower_bounds = self._mdp.info.observation_space.low
+        upper_bouds = self._mdp.info.observation_space.high
+        state_size = len(lower_bounds)
+        n_tiles = [self._n_tiles] * state_size
+        if self._n_tilings * (self._n_tiles**state_size) > self._hash_size:
+            tilings = HashingRecTilesFeatures(
+                hash_size=self._hash_size,
+                tilings=self._n_tilings,
+                state_low=lower_bounds,
+                state_high=upper_bouds,
+                tiles_per_dim=n_tiles,
+                action_values=None,
+            )
+            self._features = Features(n_outputs=tilings.size, function=tilings)
+        else:
+            tilings = Tiles.generate(
+                n_tilings=self._n_tilings,
+                n_tiles=n_tiles,
+                low=lower_bounds,
+                high=upper_bouds,
+            )
+            self._features = Features(tilings=tilings)
 
     @override
     def _create_agent(self) -> None:
