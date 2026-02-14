@@ -28,7 +28,7 @@ class SarsaLambdaRecConfig(ExperimentConfig):
             # n_tiles = 5 means that in each dimension of the mdp it will have 5.
             # so if mdp state dimension is 2 we will have a 5x5 grid.
             n_tiles=5,
-            hash_size=262_144,
+            hash_size=131_072,
             lambda_coeff=0.99,
             # in this case we mean the learning_rate pre scaling.
             learning_rate=0.1,
