@@ -7,7 +7,7 @@ from mushroom_rl.utils.parameters import LinearParameter, Parameter
 from mushroom_rl.utils.replay_memory import PrioritizedReplayMemory
 from typing_extensions import override
 
-from dynamic_features.backbones.Linear import Linear
+from dynamic_features.backbones import Linear
 from dynamic_features.configs import EnvConfig, PolicyConfig, RainbowAgentConfig, TrainingConfig, WandbConfig
 from dynamic_features.experiments import AbstractExp
 

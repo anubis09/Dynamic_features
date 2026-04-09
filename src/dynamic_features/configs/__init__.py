@@ -11,18 +11,15 @@ from .env_config import (
     PuddleWorldEnvConfig,
     RainbowParams,
 )
-from .experiments import (
+from .experiments.baselines.dqn import DqnAgentConfig, DqnConfig
+from .experiments.baselines.rainbow import RainbowAgentConfig, RainbowConfig
+from .experiments.baselines.sarsa_lambda_rec import SarsaLambdaRecAgentConfig, SarsaLambdaRecConfig
+from .experiments.experiment_conf import (
     AgentConfig,
-    DqnAgentConfig,
-    DqnConfig,
     ExperimentConfig,
     Losses,
     Optimizers,
     PolicyConfig,
-    RainbowAgentConfig,
-    RainbowConfig,
-    SarsaLambdaRecAgentConfig,
-    SarsaLambdaRecConfig,
     TAgentConfig,
     TrainingConfig,
 )
