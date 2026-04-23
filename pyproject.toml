@@ -20,11 +20,17 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.3.4","pre-commit>=3.5.0","wandb>=0.19.6",]
+dev = [
+    "pytest>=8.3.4",
+    "pre-commit>=3.5.0",
+    "wandb>=0.19.6",
+    "pytest-benchmark>=4.0.0",
+]
 
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::DeprecationWarning",]
 addopts = "-s"
+markers = ["benchmark: marks tests as benchmarks (deselect with '-m not benchmark')"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
