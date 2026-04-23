@@ -15,18 +15,21 @@ register_configs()
 def test_experiments(environment, algorithm):
     """Test the experiment function directly using Hydra context."""
 
-    with initialize_config_dir(version_base=None, config_dir=str(Path(CONFIGS_PATH))):
-        cfg = compose(
-            config_name="config",
-            overrides=[
-                f"environment={environment}",
-                "environment.budget=20",
-                f"algorithm={algorithm}",
-                "algorithm.train.n_epochs=5",
-                "algorithm.train.test_episodes=3",
-                "algorithm.train.final_test_episodes=5",
-                "wandb_log=False",
-            ],
-        )
+    overrides = [
+        f"environment={environment}",
+        "environment.budget=20",
+        f"algorithm={algorithm}",
+        "algorithm.train.n_epochs=5",
+        "algorithm.train.test_episodes=3",
+        "algorithm.train.final_test_episodes=5",
+        "wandb_log=False",
+    ]
 
+    if algorithm in ("dqn", "rainbow"):
+        overrides.append("algorithm.agent.initial_replay_size=10")
+        overrides.append("algorithm.agent.max_replay_size=20")
+        overrides.append("algorithm.agent.target_update_frequency=5")
+
+    with initialize_config_dir(version_base=None, config_dir=str(Path(CONFIGS_PATH))):
+        cfg = compose(config_name="config", overrides=overrides)
         experiment(cfg)
