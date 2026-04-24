@@ -3,8 +3,8 @@ from mushroom_rl.core import Environment
 
 from dynamic_features.methods import ClusteringFeatures, KMeansTilingFitter, get_states_from_mdp
 
-N_CLUSTERS = 5
-N_TILINGS = 3
+N_CLUSTERS = 10
+N_TILINGS = 10
 N_TRAIN = 200
 N_TEST = 50
 SEED = 42
