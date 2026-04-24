@@ -22,6 +22,13 @@ def assert_binary_output(model, states) -> None:
     assert np.all((out == 0) | (out == 1))
 
 
+def assert_1d_state_shape(model, state, expected_width: int) -> None:
+    """A single 1D state returns a 1D array with correct width."""
+    assert state.ndim == 1
+    out = model.predict(state)
+    assert out.shape == (expected_width,)
+
+
 # ==================== KMeansTilingFitter ====================
 
 
@@ -39,6 +46,9 @@ class TestKMeansTilingFitter:
         """Each state activates exactly one tile."""
         out = trained_tiling.predict(test_states)
         assert np.all(out.sum(axis=1) == 1)
+
+    def test_1d_single_state_shape(self, trained_tiling, test_states):
+        assert_1d_state_shape(trained_tiling, test_states[0], N_CLUSTERS)
 
 
 # ==================== ClusteringFeatures ====================
@@ -65,6 +75,14 @@ class TestClusteringFeatures:
         for i in range(N_TILINGS):
             block = out[:, i * N_CLUSTERS : (i + 1) * N_CLUSTERS]
             assert np.all(block.sum(axis=1) == 1)
+
+    def test_1d_single_state_shape(self, trained_tilings, test_states):
+        assert_1d_state_shape(trained_tilings, test_states[0], N_TILINGS * N_CLUSTERS)
+
+    def test_1d_total_active_tiles(self, trained_tilings, test_states):
+        """1D input: exactly n_tilings tiles active in the flat output."""
+        out = trained_tilings.predict(test_states[0])
+        assert out.sum() == N_TILINGS
 
     def test_tilings_produce_different_partitions(self, trained_tilings, test_states):
         """At least two tiling blocks assign states differently."""
