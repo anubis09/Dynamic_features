@@ -31,7 +31,10 @@ dev = [
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::DeprecationWarning",]
 addopts = "-s"
-markers = ["benchmark: marks tests as benchmarks (deselect with '-m not benchmark')"]
+markers = [
+    "benchmark: marks tests as benchmarks (deselect with '-m not benchmark')",
+    "slow: marks tests as slow (deselect with '-m not slow')"
+]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"

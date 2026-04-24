@@ -10,6 +10,7 @@ from dynamic_features.launcher import experiment
 register_configs()
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("environment", ["Acrobot", "MountainCar", "LunarLander", "CartPole", "PuddleWorld"])
 @pytest.mark.parametrize("algorithm", ["dqn", "rainbow", "sarsa_lambda_rec", "sarsa_lambda_dt"])
 def test_experiments(environment, algorithm):
