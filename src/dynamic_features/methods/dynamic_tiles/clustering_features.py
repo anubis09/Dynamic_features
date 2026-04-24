@@ -99,3 +99,12 @@ class ClusteringFeatures:
             Parallel(n_jobs=-1, prefer="threads")(delayed(tiling.predict)(X=X) for tiling in self._tilings),
         )
         return np.concatenate(out, axis=1)
+
+    def __call__(self, X: np.ndarray) -> np.ndarray:
+        """Calls predict. See `predict` for details."""
+        return self.predict(X=X)
+
+    @property
+    def size(self):
+        """int: Feature vector dimensionality for 1 sample."""
+        return self._n_tilings * self._n_clusters
