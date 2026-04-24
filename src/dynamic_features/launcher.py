@@ -45,7 +45,6 @@ def experiment(
     # the other parameters are input for the __init__ method.
     hash = dict_hash(cfg.algorithm)
     cfg.wandb.config["sweep_id"] = hash
-    # this is not working, I should try to find a better way, or try to make it work.
 
     exp_class = instantiate(cfg.algorithm, env=cfg.environment, wandb=cfg.wandb, seed=cfg.seed, _convert_="object")
 

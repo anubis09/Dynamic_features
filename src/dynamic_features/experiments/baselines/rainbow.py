@@ -37,11 +37,11 @@ class RainbowExperiment(AbstractExp[RainbowAgentConfig]):
         wandb: WandbConfig,
         seed: int,
     ) -> None:
-        """Initializes the DQN experiment and seeds the PyTorch backend.
+        """Initializes the Rainbow experiment and seeds the PyTorch backend.
 
         Args:
             policy (PolicyConfig): Configuration for the agent's policy.
-            agent (DqnAgentConfig): Algorithm-specific agent configuration.
+            agent (RainbowAgentConfig): Algorithm-specific agent configuration.
             train (TrainingConfig): Training hyperparameters (epochs, steps).
             env (EnvConfig): Environment parameters (id, horizon, gamma).
             wandb (WandbConfig): Weights & Biases logging configuration.
@@ -71,7 +71,7 @@ class RainbowExperiment(AbstractExp[RainbowAgentConfig]):
 
     @override
     def _create_agent(self) -> None:
-        """Instantiates the DQN agent with a Linear PyTorch approximator.
+        """Instantiates the Rainbow agent with a Linear PyTorch approximator.
 
         This sets up the optimizer, loss function, and network architecture based
         on the agent configuration and environment info.
