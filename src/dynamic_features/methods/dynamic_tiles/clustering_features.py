@@ -70,6 +70,21 @@ class ClusteringFeatures:
             delayed(tiling.train)(mdp=mdp, n_states_for_train=n_states_for_train) for tiling in self._tilings
         )
 
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Predict cluster indices for each state across all tilings.
+
+        Args:
+            X: State array of shape (n_samples, n_features).
+
+        Returns:
+            Cluster indices of shape (n_samples, n_tilings), where each column
+            contains the cluster assignment from one tiling.
+        """
+        out = []
+        for tiling in self._tilings:
+            out.append(tiling.predict(X=X))
+        return np.stack(out, axis=-1)
+
     def encode(self, X: np.ndarray) -> np.ndarray:
         """Encodes states as concatenated one-hot vectors across all tilings.
 

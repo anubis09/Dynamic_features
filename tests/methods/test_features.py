@@ -1,31 +1,33 @@
+from typing import Callable
+
 import numpy as np
 from conftest import N_CLUSTERS, N_TILINGS, SEED
 
 # ==================== Helpers ====================
 
 
-def assert_predict_shape(model, states, expected_width: int) -> None:
+def assert_2d_shape(fn: Callable, states: np.ndarray, expected_width: int) -> None:
     """Output shape is (n_samples, expected_width)."""
-    out = model.encode(states)
+    out = fn(states)
     assert out.shape == (len(states), expected_width)
 
 
-def assert_single_state_shape(model, states, expected_width: int) -> None:
+def assert_single_state_shape(fn: Callable, states: np.ndarray, expected_width: int) -> None:
     """A single state still returns a 2D array with correct width."""
-    out = model.encode(states[:1])
+    out = fn(states[:1])
     assert out.shape == (1, expected_width)
 
 
-def assert_binary_output(model, states) -> None:
+def assert_binary_output(fn: Callable, states: np.ndarray) -> None:
     """Every value in the output is either 0 or 1."""
-    out = model.encode(states)
+    out = fn(states)
     assert np.all((out == 0) | (out == 1))
 
 
-def assert_1d_state_shape(model, state, expected_width: int) -> None:
+def assert_1d_state_shape(fn: Callable, state: np.ndarray, expected_width: int) -> None:
     """A single 1D state returns a 1D array with correct width."""
     assert state.ndim == 1
-    out = model.encode(state)
+    out = fn(state)
     assert out.shape == (expected_width,)
 
 
@@ -33,14 +35,14 @@ def assert_1d_state_shape(model, state, expected_width: int) -> None:
 
 
 class TestKMeansTilingFitter:
-    def test_predict_shape(self, trained_tiling, test_states):
-        assert_predict_shape(trained_tiling, test_states, N_CLUSTERS)
+    def test_encode_shape(self, trained_tiling, test_states):
+        assert_2d_shape(trained_tiling.encode, test_states, N_CLUSTERS)
 
     def test_single_state_shape(self, trained_tiling, test_states):
-        assert_single_state_shape(trained_tiling, test_states, N_CLUSTERS)
+        assert_single_state_shape(trained_tiling.encode, test_states, N_CLUSTERS)
 
     def test_binary_output(self, trained_tiling, test_states):
-        assert_binary_output(trained_tiling, test_states)
+        assert_binary_output(trained_tiling.encode, test_states)
 
     def test_one_active_tile_per_state(self, trained_tiling, test_states):
         """Each state activates exactly one tile."""
@@ -48,21 +50,25 @@ class TestKMeansTilingFitter:
         assert np.all(out.sum(axis=1) == 1)
 
     def test_1d_single_state_shape(self, trained_tiling, test_states):
-        assert_1d_state_shape(trained_tiling, test_states[0], N_CLUSTERS)
+        assert_1d_state_shape(trained_tiling.encode, test_states[0], N_CLUSTERS)
+
+    def test_predict_shape(self, trained_tiling, test_states):
+        out = trained_tiling.predict(test_states)
+        assert out.shape == (len(test_states),)
 
 
 # ==================== ClusteringFeatures ====================
 
 
 class TestClusteringFeatures:
-    def test_predict_shape(self, trained_tilings, test_states):
-        assert_predict_shape(trained_tilings, test_states, N_TILINGS * N_CLUSTERS)
+    def test_encode_shape(self, trained_tilings, test_states):
+        assert_2d_shape(trained_tilings.encode, test_states, N_TILINGS * N_CLUSTERS)
 
     def test_single_state_shape(self, trained_tilings, test_states):
-        assert_single_state_shape(trained_tilings, test_states, N_TILINGS * N_CLUSTERS)
+        assert_single_state_shape(trained_tilings.encode, test_states, N_TILINGS * N_CLUSTERS)
 
     def test_binary_output(self, trained_tilings, test_states):
-        assert_binary_output(trained_tilings, test_states)
+        assert_binary_output(trained_tilings.encode, test_states)
 
     def test_total_active_tiles(self, trained_tilings, test_states):
         """Each state activates exactly n_tilings tiles in total."""
@@ -77,7 +83,7 @@ class TestClusteringFeatures:
             assert np.all(block.sum(axis=1) == 1)
 
     def test_1d_single_state_shape(self, trained_tilings, test_states):
-        assert_1d_state_shape(trained_tilings, test_states[0], N_TILINGS * N_CLUSTERS)
+        assert_1d_state_shape(trained_tilings.encode, test_states[0], N_TILINGS * N_CLUSTERS)
 
     def test_1d_total_active_tiles(self, trained_tilings, test_states):
         """1D input: exactly n_tilings tiles active in the flat output."""
@@ -92,6 +98,14 @@ class TestClusteringFeatures:
             not np.array_equal(blocks[i], blocks[j]) for i in range(N_TILINGS) for j in range(i + 1, N_TILINGS)
         )
         assert any_differ
+
+    def test_predict_shape(self, trained_tilings, test_states):
+        assert_2d_shape(trained_tilings.predict, test_states, N_TILINGS)
+
+    def test_predict_values_in_range(self, trained_tilings, test_states):
+        """All cluster indices are valid cluster labels."""
+        out = trained_tilings.predict(test_states)
+        assert np.all((out >= 0) & (out < N_CLUSTERS))
 
 
 # ==================== Seed Derivation ====================

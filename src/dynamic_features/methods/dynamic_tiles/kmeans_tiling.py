@@ -1,4 +1,5 @@
 from logging import DEBUG, Logger, getLogger
+from typing import cast
 
 import numpy as np
 from mushroom_rl.core import Environment
@@ -43,6 +44,22 @@ class KMeansTilingFitter:
         self._kmeans.fit(X_normalized)
         self._logger.debug("Training complete.")
 
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        """Predict cluster index for each state.
+
+        Args:
+            X: State array of shape (n_samples, n_features) or
+                (n_features,) for a single state.
+
+        Returns:
+            Cluster indices of shape (n_samples,) for batch input,
+            or shape (1,) for single state input.
+        """
+        X = np.atleast_2d(X)
+        X_normalized = self._scaler.transform(X)
+        indexes = self._kmeans.predict(X_normalized)
+        return cast(np.ndarray, indexes)
+
     def encode(self, X: np.ndarray) -> np.ndarray:
         """Encode states as one-hot cluster assignments.
 
@@ -55,9 +72,7 @@ class KMeansTilingFitter:
             or (n_samples, n_clusters) for batch input.
         """
         is_1d = X.ndim == 1
-        X = np.atleast_2d(X)
-        X_normalized = self._scaler.transform(X)
-        indexes = self._kmeans.predict(X_normalized)
+        indexes = self.predict(X)
         out = np.zeros((len(indexes), self._n_clusters))
         # out[:, indexes]=1 would put 1 in the indexes place for EACH row and not 1 for row.
         out[np.arange(len(indexes)), indexes] = 1
