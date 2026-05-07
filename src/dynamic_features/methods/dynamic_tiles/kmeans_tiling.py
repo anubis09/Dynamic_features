@@ -43,8 +43,8 @@ class KMeansTilingFitter:
         self._kmeans.fit(X_normalized)
         self._logger.debug("Training complete.")
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        """Assign each state to its tile index.
+    def encode(self, X: np.ndarray) -> np.ndarray:
+        """Encode states as one-hot cluster assignments.
 
         Args:
             X: State array of shape (n_samples, n_features) or
@@ -64,7 +64,3 @@ class KMeansTilingFitter:
         if is_1d:
             out = out.squeeze(0)
         return out
-
-    def __call__(self, X: np.ndarray) -> np.ndarray:
-        """Calls predict. See `predict` for details."""
-        return self.predict(X)

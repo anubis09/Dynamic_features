@@ -70,7 +70,7 @@ class ClusteringFeatures:
             delayed(tiling.train)(mdp=mdp, n_states_for_train=n_states_for_train) for tiling in self._tilings
         )
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def encode(self, X: np.ndarray) -> np.ndarray:
         """Encodes states as concatenated one-hot vectors across all tilings.
 
         Args:
@@ -81,10 +81,10 @@ class ClusteringFeatures:
         """
         out = []
         for tiling in self._tilings:
-            out.append(tiling.predict(X=X))
+            out.append(tiling.encode(X=X))
         return np.concatenate(out, axis=-1)
 
-    def _p_predict(self, X: np.ndarray) -> np.ndarray:
+    def _p_encode(self, X: np.ndarray) -> np.ndarray:
         """Encodes states as concatenated one-hot vectors across all tilings.
 
         Args:
@@ -95,13 +95,13 @@ class ClusteringFeatures:
         """
         out = cast(
             List[np.ndarray],
-            Parallel(n_jobs=-1, prefer="threads")(delayed(tiling.predict)(X=X) for tiling in self._tilings),
+            Parallel(n_jobs=-1, prefer="threads")(delayed(tiling.encode)(X=X) for tiling in self._tilings),
         )
         return np.concatenate(out, axis=-1)
 
     def __call__(self, X: np.ndarray) -> np.ndarray:
-        """Calls predict. See `predict` for details."""
-        return self.predict(X=X)
+        """Calls encode. See `encode` for details."""
+        return self.encode(X=X)
 
     @property
     def size(self):

@@ -6,26 +6,26 @@ from conftest import N_CLUSTERS, N_TILINGS, SEED
 
 def assert_predict_shape(model, states, expected_width: int) -> None:
     """Output shape is (n_samples, expected_width)."""
-    out = model.predict(states)
+    out = model.encode(states)
     assert out.shape == (len(states), expected_width)
 
 
 def assert_single_state_shape(model, states, expected_width: int) -> None:
     """A single state still returns a 2D array with correct width."""
-    out = model.predict(states[:1])
+    out = model.encode(states[:1])
     assert out.shape == (1, expected_width)
 
 
 def assert_binary_output(model, states) -> None:
     """Every value in the output is either 0 or 1."""
-    out = model.predict(states)
+    out = model.encode(states)
     assert np.all((out == 0) | (out == 1))
 
 
 def assert_1d_state_shape(model, state, expected_width: int) -> None:
     """A single 1D state returns a 1D array with correct width."""
     assert state.ndim == 1
-    out = model.predict(state)
+    out = model.encode(state)
     assert out.shape == (expected_width,)
 
 
@@ -44,7 +44,7 @@ class TestKMeansTilingFitter:
 
     def test_one_active_tile_per_state(self, trained_tiling, test_states):
         """Each state activates exactly one tile."""
-        out = trained_tiling.predict(test_states)
+        out = trained_tiling.encode(test_states)
         assert np.all(out.sum(axis=1) == 1)
 
     def test_1d_single_state_shape(self, trained_tiling, test_states):
@@ -66,12 +66,12 @@ class TestClusteringFeatures:
 
     def test_total_active_tiles(self, trained_tilings, test_states):
         """Each state activates exactly n_tilings tiles in total."""
-        out = trained_tilings.predict(test_states)
+        out = trained_tilings.encode(test_states)
         assert np.all(out.sum(axis=-1) == N_TILINGS)
 
     def test_one_active_per_tiling_block(self, trained_tilings, test_states):
         """Within each tiling block, exactly one tile is active per state."""
-        out = trained_tilings.predict(test_states)
+        out = trained_tilings.encode(test_states)
         for i in range(N_TILINGS):
             block = out[:, i * N_CLUSTERS : (i + 1) * N_CLUSTERS]
             assert np.all(block.sum(axis=1) == 1)
@@ -81,12 +81,12 @@ class TestClusteringFeatures:
 
     def test_1d_total_active_tiles(self, trained_tilings, test_states):
         """1D input: exactly n_tilings tiles active in the flat output."""
-        out = trained_tilings.predict(test_states[0])
+        out = trained_tilings.encode(test_states[0])
         assert out.sum() == N_TILINGS
 
     def test_tilings_produce_different_partitions(self, trained_tilings, test_states):
         """At least two tiling blocks assign states differently."""
-        out = trained_tilings.predict(test_states)
+        out = trained_tilings.encode(test_states)
         blocks = [out[:, i * N_CLUSTERS : (i + 1) * N_CLUSTERS] for i in range(N_TILINGS)]
         any_differ = any(
             not np.array_equal(blocks[i], blocks[j]) for i in range(N_TILINGS) for j in range(i + 1, N_TILINGS)
