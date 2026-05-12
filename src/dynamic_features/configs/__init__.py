@@ -14,7 +14,7 @@ from .env_config import (
 from .experiments.baselines.dqn import DqnAgentConfig, DqnConfig
 from .experiments.baselines.rainbow import RainbowAgentConfig, RainbowConfig
 from .experiments.baselines.sarsa_lambda_rec import SarsaLambdaRecAgentConfig, SarsaLambdaRecConfig
-from .experiments.dynamic_tiles.sarsa_lambda_dt import SarsaLambdaDTAgentConfig, SarsaLambdaDTConfig
+from .experiments.dynamic_tiles.sarsa_lambda_dt import ApproximatorConfig, SarsaLambdaDTAgentConfig, SarsaLambdaDTConfig
 from .experiments.experiment_conf import (
     AgentConfig,
     ExperimentConfig,
@@ -66,6 +66,7 @@ __all__ = [
     "SarsaLambdaRecConfig",
     "SarsaLambdaDTAgentConfig",
     "SarsaLambdaDTConfig",
+    "ApproximatorConfig",
     "RainbowConfig",
     "RainbowAgentConfig",
     "ExperimentConfig",

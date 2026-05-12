@@ -41,6 +41,7 @@ typeCheckingMode = "standard"
 include = ["src"]
 ignore = ["**/__pycache__", ".venv"]
 allowedUntypedLibraries = ["hydra","mushroom_rl", "torch"]
+reportPrivateImportUsage = false
 
 [tool.ruff]
 line-length = 120

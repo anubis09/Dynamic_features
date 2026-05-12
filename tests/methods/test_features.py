@@ -107,6 +107,15 @@ class TestClusteringFeatures:
         out = trained_tilings.predict(test_states)
         assert np.all((out >= 0) & (out < N_CLUSTERS))
 
+    def test_encode_approx_shape(self, trained_tilings, test_states):
+        out = trained_tilings.encode_approx(test_states)
+        assert out.shape == (len(test_states), N_TILINGS * N_CLUSTERS)
+
+    def test_encode_approx_active_bits(self, trained_tilings, test_states):
+        """Each state has exactly n_tilings active bits, one per tiling block."""
+        out = trained_tilings.encode_approx(test_states)
+        assert np.all(out.sum(axis=-1) == N_TILINGS)
+
 
 # ==================== Seed Derivation ====================
 

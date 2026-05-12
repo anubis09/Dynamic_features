@@ -10,6 +10,7 @@ class Losses(Enum):
     MSE = "mse_loss"
     SL1 = "smooth_l1_loss"
     HUBER = "huber_loss"
+    CE = "cross_entropy"
 
     def get_function(self):
         """Resolve to actual PyTorch function"""

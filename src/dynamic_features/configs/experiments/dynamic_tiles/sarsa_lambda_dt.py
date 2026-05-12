@@ -3,17 +3,34 @@ from dataclasses import dataclass, field
 from dynamic_features.configs.experiments.experiment_conf import (
     AgentConfig,
     ExperimentConfig,
+    Losses,
+    Optimizers,
     PolicyConfig,
     TrainingConfig,
 )
 
 
 @dataclass
+class ApproximatorConfig:
+    n_hidden_layers: int
+    hidden_dim: int
+    dropout: float
+    batch_size: int
+    lr: float
+    eval_size: float
+    loss: Losses
+    optimizer: Optimizers
+    n_epochs: int
+
+
+@dataclass
 class SarsaLambdaDTAgentConfig(AgentConfig):
+    lambda_coeff: float
+    ### features tilings
     n_tilings: int
     n_clusters: int
-    lambda_coeff: float
     clustering_training_states_multiplier: int
+    approximator: ApproximatorConfig
 
 
 @dataclass
@@ -29,9 +46,21 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             lambda_coeff=0.99,
             # Scales the number of states sampled to train the clustering features.
             # Total training states = n_clusters * state_dim * clustering_training_states_multiplier.
-            clustering_training_states_multiplier=150,
+            clustering_training_states_multiplier=125,
             # in this case we mean the learning_rate pre scaling.
             learning_rate=0.1,
+            approximator=ApproximatorConfig(
+                n_hidden_layers=2,
+                hidden_dim=32,
+                dropout=0.0,
+                ### approximator train
+                batch_size=512,
+                lr=1e-3,
+                eval_size=0.1,
+                loss=Losses.CE,
+                optimizer=Optimizers.ADAM,
+                n_epochs=5,
+            ),
         )
     )
     train: TrainingConfig = field(

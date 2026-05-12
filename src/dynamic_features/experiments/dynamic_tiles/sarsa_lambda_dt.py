@@ -1,5 +1,6 @@
 from typing import final
 
+import numpy as np
 from mushroom_rl.algorithms.value import TrueOnlineSARSALambda
 from mushroom_rl.features import Features
 from mushroom_rl.policy import EpsGreedy
@@ -8,7 +9,7 @@ from typing_extensions import override
 
 from dynamic_features.configs import EnvConfig, PolicyConfig, SarsaLambdaDTAgentConfig, TrainingConfig, WandbConfig
 from dynamic_features.experiments import AbstractExp
-from dynamic_features.methods import ClusteringFeatures
+from dynamic_features.methods import ClusteringFeatures, get_states_from_mdp
 
 
 @final
@@ -60,12 +61,22 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         partition the state space into tiles, providing a rich feature
         representation.
         """
-        tilings = ClusteringFeatures(n_tilings=self._n_tilings, n_clusters=self._n_tiles, seed=self._seed)
         input_shape = self._mdp.info.observation_space.shape[0]
+        tilings = ClusteringFeatures(
+            input_shape=input_shape,
+            n_tilings=self._n_tilings,
+            n_clusters=self._n_tiles,
+            approximator_config=self._agent_config.approximator,
+            seed=self._seed,
+        )
         self._logger.debug(f"input shape: {input_shape}")
         n_states_for_train = self._agent_config.clustering_training_states_multiplier * input_shape * self._n_tiles
-        tilings.train(mdp=self._mdp, n_states_for_train=n_states_for_train)
-        self._features = Features(n_outputs=tilings.size, function=tilings)
+        X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states_for_train) for _ in range(self._n_tilings)]
+        tilings.train(X_per_tilings=X_list)
+        X_train = np.concatenate(X_list, axis=0)
+        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states_for_train)
+        tilings.train_approximator(X=X_train, X_test=X_test)
+        self._features = Features(n_outputs=tilings.size, function=tilings.encode_approx)
 
     @override
     def _create_agent(self) -> None:
