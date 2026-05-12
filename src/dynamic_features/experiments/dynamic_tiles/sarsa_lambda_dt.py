@@ -75,7 +75,11 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         tilings.train(X_per_tilings=X_list)
         X_train = np.concatenate(X_list, axis=0)
         X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states_for_train)
-        tilings.train_approximator(X=X_train, X_test=X_test)
+        per_head_acc, overall_acc = tilings.train_approximator(X=X_train, X_test=X_test)
+        self._pre_train_metrics = {
+            "approximator/accuracy": overall_acc,
+            **{f"approximator/head_{i}_accuracy": acc.item() for i, acc in enumerate(per_head_acc)},
+        }
         self._features = Features(n_outputs=tilings.size, function=tilings.encode_approx)
 
     @override

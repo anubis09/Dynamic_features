@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import asdict
 from logging import Logger
-from typing import Generic, List, Tuple
+from typing import Dict, Generic, List, Optional, Tuple
 
 import numpy as np
 import wandb
@@ -65,6 +65,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         "_seed",
         "_wandb_conf",
         "_logger",
+        "_pre_train_metrics",
     ]
 
     def __init__(
@@ -119,6 +120,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
             n=policy.final_exp_frame,
         )
 
+        self._pre_train_metrics: Dict[str, float] = {}
         self._setup()
 
     def _setup(self) -> None:
@@ -243,7 +245,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._logger.info(f"Initial evaluation: J={initial_J:.3f}, dJ={initial_dJ:.3f}")
 
         if wandb_active:
-            self._log_to_wandb(J=initial_J, dJ=initial_dJ, step=0)
+            self._log_to_wandb(J=initial_J, dJ=initial_dJ, step=0, extra_metrics=self._pre_train_metrics)
 
         n_epochs = self._training_config.n_epochs
         n_steps = self._mdp_config.budget // n_epochs
@@ -305,23 +307,24 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
 
         return J, dJ
 
-    def _log_to_wandb(self, J: float, dJ: float, step: int) -> None:
+    def _log_to_wandb(self, J: float, dJ: float, step: int, extra_metrics: Optional[Dict[str, float]] = None) -> None:
         """Logs scalar metrics to WandB.
 
         Args:
             J (float): Average undiscounted return.
             dJ (float): Average discounted return.
             step (int): Current epoch number.
+            extra_metrics (dict, optional): Additional scalar metrics merged into
+                the same log call and therefore aligned to the same step.
         """
         group_name = self._wandb_conf.get("group")
-        wandb.log(
-            {
-                f"{group_name}/average_return": J,
-                f"{group_name}/discounted_average_return": dJ,
-            },
-            step=step,
-            commit=True,
-        )
+        metrics = {
+            f"{group_name}/average_return": J,
+            f"{group_name}/discounted_average_return": dJ,
+        }
+        if extra_metrics:
+            metrics.update(extra_metrics)
+        wandb.log(metrics, step=step, commit=True)
 
     def save_agent(self, path: str) -> None:
         """Persists the agent state to disk.
