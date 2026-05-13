@@ -2,23 +2,23 @@ from typing import cast
 
 import numpy as np
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 
 
 class KMeansTilingFitter:
-    """Partitions a state space into clusters using KMeans and encodes states as one-hot vectors.
+    """Partitions a pre-normalized state space into clusters and encodes states as one-hot vectors.
 
-    Internally pairs a ``StandardScaler`` with a ``KMeans`` model so that
-    clustering is always performed in a normalized feature space.
+    Normalization is expected to be applied by the caller before passing data to
+    ``train``, ``predict``, or ``encode``. Typically ``ClusteringFeatures`` owns
+    the single shared ``StandardScaler`` and pre-normalizes all inputs.
 
     Typical usage::
 
         fitter = KMeansTilingFitter(n_clusters=16, seed=42)
-        fitter.train(X_samples)          # fit scaler + KMeans
-        encoding = fitter.encode(state)  # one-hot vector of length n_clusters
+        fitter.train(X_normalized)          # fit KMeans on pre-normalized data
+        encoding = fitter.encode(state_normalized)  # one-hot vector of length n_clusters
     """
 
-    __slots__ = ["_n_clusters", "_scaler", "_kmeans", "_seed"]
+    __slots__ = ["_n_clusters", "_kmeans", "_seed"]
 
     def __init__(self, n_clusters: int, seed: int) -> None:
         """Initializes the KMeansTilingFitter.
@@ -28,31 +28,27 @@ class KMeansTilingFitter:
             seed: Random seed passed to KMeans for reproducibility.
         """
         self._n_clusters: int = n_clusters
-        self._scaler: StandardScaler = StandardScaler()
         self._seed: int = seed
         self._kmeans = KMeans(n_clusters=self._n_clusters, random_state=self._seed, n_init="auto")
 
     def train(self, X: np.ndarray) -> None:
-        """Fits the StandardScaler and KMeans model on a set of environment state samples.
+        """Fits the KMeans model on a set of pre-normalized environment state samples.
 
-        Normalizes ``X`` with the scaler before running KMeans, so that
-        features with larger ranges do not dominate cluster assignments.
         Must be called before ``predict`` or ``encode``.
 
         Args:
-            X: State array of shape (n_samples, n_features).
+            X: Pre-normalized state array of shape (n_samples, n_features).
         """
-        X_normalized = self._scaler.fit_transform(X)
-        self._kmeans.fit(X_normalized)
+        self._kmeans.fit(X)
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """Returns the nearest cluster index for each state after normalizing the input.
+        """Returns the nearest cluster index for each state.
 
         A 1-D input is promoted to 2-D internally via ``np.atleast_2d``, so
         the output is always at least 1-D.
 
         Args:
-            X: State array of shape (n_samples, n_features) or
+            X: Pre-normalized state array of shape (n_samples, n_features) or
                 (n_features,) for a single state.
 
         Returns:
@@ -60,8 +56,7 @@ class KMeansTilingFitter:
             or shape (1,) for a single state.
         """
         X = np.atleast_2d(X)
-        X_normalized = self._scaler.transform(X)
-        indexes = self._kmeans.predict(X_normalized)
+        indexes = self._kmeans.predict(X)
         return cast(np.ndarray, indexes)
 
     def encode(self, X: np.ndarray) -> np.ndarray:

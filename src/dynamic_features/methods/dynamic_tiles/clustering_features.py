@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from joblib import Parallel, delayed
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
 from dynamic_features.backbones import MultiHeadMLP, Trainer
@@ -33,7 +34,16 @@ class ClusteringFeatures:
 
     """
 
-    __slots__ = ["_n_tilings", "_n_clusters", "_tilings", "_approximator", "_approximator_config", "_seed", "_logger"]
+    __slots__ = [
+        "_n_tilings",
+        "_n_clusters",
+        "_tilings",
+        "_approximator",
+        "_approximator_config",
+        "_seed",
+        "_scaler",
+        "_logger",
+    ]
 
     def __init__(
         self, input_shape: int, n_tilings: int, n_clusters: int, seed: int, approximator_config: ApproximatorConfig
@@ -58,6 +68,7 @@ class ClusteringFeatures:
             KMeansTilingFitter(n_clusters=n_clusters, seed=self._derive_seed(seed=seed, tiling_index=tiling_index))
             for tiling_index in range(n_tilings)
         ]
+        self._scaler: StandardScaler = StandardScaler()
         self._approximator_config = approximator_config
         self._approximator = MultiHeadMLP(
             n_input=input_shape,
@@ -83,6 +94,12 @@ class ClusteringFeatures:
         h = hashlib.md5(f"{seed}_{tiling_index}".encode()).hexdigest()
         return int(h, 16) % (2**32)
 
+    def _normalize(self, X: np.ndarray) -> np.ndarray:
+        """Applies the fitted StandardScaler, preserving the input dimensionality."""
+        is_1d = X.ndim == 1
+        X_scaled = cast(np.ndarray, self._scaler.transform(np.atleast_2d(X)))
+        return X_scaled.squeeze(0) if is_1d else X_scaled
+
     def train(self, X_per_tilings: List[np.ndarray]) -> None:
         """Fits all KMeans tilings in parallel on their respective state samples.
 
@@ -93,8 +110,10 @@ class ClusteringFeatures:
         """
         assert len(X_per_tilings) == self._n_tilings
         self._logger.info("Starting training of each tiling.")
+        self._scaler.fit(np.concatenate(X_per_tilings, axis=0))
+        X_normalized_per_tilings = [self._scaler.transform(X) for X in X_per_tilings]
         Parallel(n_jobs=-1, prefer="threads")(
-            delayed(tiling.train)(X=X) for X, tiling in zip(X_per_tilings, self._tilings)
+            delayed(tiling.train)(X=X) for X, tiling in zip(X_normalized_per_tilings, self._tilings)
         )
         self._logger.info("Train over.")
 
@@ -134,10 +153,11 @@ class ClusteringFeatures:
             head_losses = [loss_fn(preds[:, n_head, :], ys[:, n_head]) for n_head in range(n_heads)]
             return torch.stack(head_losses).mean()
 
-        y = self.predict(X)
+        y = self.predict(X).astype(np.int64)
 
+        X_scaled = self._normalize(X).astype(np.float32)
         X_train, X_eval, y_train, y_eval = train_test_split(
-            X.astype(np.float32), y, test_size=self._approximator_config.eval_size, random_state=42
+            X_scaled, y, test_size=self._approximator_config.eval_size, random_state=42
         )
 
         train_ds = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
@@ -176,7 +196,7 @@ class ClusteringFeatures:
                 - ``overall_acc``: Macro-average of ``per_head_acc`` as a Python float.
         """
         y_test = self.predict(X=X)
-        test_ds = TensorDataset(torch.from_numpy(X.astype(np.float32)), torch.from_numpy(y_test))
+        test_ds = TensorDataset(torch.from_numpy(self._normalize(X).astype(np.float32)), torch.from_numpy(y_test))
         test_dataloader = DataLoader(dataset=test_ds, batch_size=128)
 
         all_preds = []
@@ -207,7 +227,7 @@ class ClusteringFeatures:
             One-hot encoded array of shape (n_samples, n_tilings * n_clusters)
             for batch input, or (n_tilings * n_clusters,) for a single state.
         """
-        X_tensor = torch.from_numpy(X.astype(np.float32))
+        X_tensor = torch.from_numpy(self._normalize(X).astype(np.float32))
 
         with torch.inference_mode():
             # logits: (n_samples, n_heads, n_clusters) or (n_heads, n_clusters)
@@ -228,9 +248,10 @@ class ClusteringFeatures:
             Cluster indices of shape (n_samples, n_tilings) or of shape (n_tilings,), where each column
             contains the cluster assignment from one tiling.
         """
+        X_norm = self._normalize(X)
         out = []
         for tiling in self._tilings:
-            out.append(tiling.predict(X=X))
+            out.append(tiling.predict(X=X_norm))
         return np.stack(out, axis=-1)
 
     def encode(self, X: np.ndarray) -> np.ndarray:
@@ -242,9 +263,10 @@ class ClusteringFeatures:
         Returns:
             One-hot encoded array of shape (n_samples, n_tilings * n_clusters) or of shape (n_tilings * n_clusters,).
         """
+        X_norm = self._normalize(X)
         out = []
         for tiling in self._tilings:
-            out.append(tiling.encode(X=X))
+            out.append(tiling.encode(X=X_norm))
         return np.concatenate(out, axis=-1)
 
     def _p_encode(self, X: np.ndarray) -> np.ndarray:
@@ -261,9 +283,10 @@ class ClusteringFeatures:
             One-hot encoded array of shape (n_samples, n_tilings * n_clusters)
             for batch input, or (n_tilings * n_clusters,) for a single state.
         """
+        X_norm = self._normalize(X)
         out = cast(
             List[np.ndarray],
-            Parallel(n_jobs=-1, prefer="threads")(delayed(tiling.encode)(X=X) for tiling in self._tilings),
+            Parallel(n_jobs=-1, prefer="threads")(delayed(tiling.encode)(X=X_norm) for tiling in self._tilings),
         )
         return np.concatenate(out, axis=-1)
 
