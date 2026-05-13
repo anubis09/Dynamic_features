@@ -21,6 +21,8 @@ class ApproximatorConfig:
     loss: Losses
     optimizer: Optimizers
     n_epochs: int
+    min_delta: float
+    patience: int
 
 
 @dataclass
@@ -45,8 +47,8 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             n_clusters=20,
             lambda_coeff=0.99,
             # Scales the number of states sampled to train the clustering features.
-            # Total training states = n_clusters * state_dim * clustering_training_states_multiplier.
-            clustering_training_states_multiplier=125,
+            # Total training states = n_clusters * clustering_training_states_multiplier.
+            clustering_training_states_multiplier=500,
             # in this case we mean the learning_rate pre scaling.
             learning_rate=0.1,
             approximator=ApproximatorConfig(
@@ -59,7 +61,9 @@ class SarsaLambdaDTConfig(ExperimentConfig):
                 eval_size=0.1,
                 loss=Losses.CE,
                 optimizer=Optimizers.ADAM,
-                n_epochs=5,
+                n_epochs=20,
+                min_delta=0.005,
+                patience=5,
             ),
         )
     )

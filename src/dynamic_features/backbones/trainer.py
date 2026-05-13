@@ -47,9 +47,9 @@ class Trainer:
         self,
         train_dataloader: DataLoader,
         n_epochs: int,
+        patience: int,
+        min_delta: float,
         eval_dataloader: Union[DataLoader, None] = None,
-        patience: int = 5,
-        min_delta: float = 0,
     ) -> None:
         """Trains the model, optionally with early stopping based on validation loss.
 

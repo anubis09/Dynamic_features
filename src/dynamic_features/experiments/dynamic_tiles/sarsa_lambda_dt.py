@@ -70,7 +70,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             seed=self._seed,
         )
         self._logger.debug(f"input shape: {input_shape}")
-        n_states_for_train = self._agent_config.clustering_training_states_multiplier * input_shape * self._n_tiles
+        n_states_for_train = self._agent_config.clustering_training_states_multiplier * self._n_tiles
         X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states_for_train) for _ in range(self._n_tilings)]
         tilings.train(X_per_tilings=X_list)
         X_train = np.concatenate(X_list, axis=0)

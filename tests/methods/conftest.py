@@ -21,6 +21,8 @@ APPROXIMATOR_CONFIG = ApproximatorConfig(
     loss=Losses.CE,
     optimizer=Optimizers.ADAM,
     n_epochs=1,
+    patience=5,
+    min_delta=0.005,
 )
 
 

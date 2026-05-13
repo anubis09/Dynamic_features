@@ -153,7 +153,7 @@ class ClusteringFeatures:
             head_losses = [loss_fn(preds[:, n_head, :], ys[:, n_head]) for n_head in range(n_heads)]
             return torch.stack(head_losses).mean()
 
-        y = self.predict(X).astype(np.int64)
+        y = self.predict(X)
 
         X_scaled = self._normalize(X).astype(np.float32)
         X_train, X_eval, y_train, y_eval = train_test_split(
@@ -171,6 +171,8 @@ class ClusteringFeatures:
             train_dataloader=train_dataloader,
             n_epochs=self._approximator_config.n_epochs,
             eval_dataloader=eval_dataloader,
+            patience=self._approximator_config.patience,
+            min_delta=self._approximator_config.min_delta,
         )
 
         per_head_acc, accuracy = self._evaluate_approximator(X=X_test)
