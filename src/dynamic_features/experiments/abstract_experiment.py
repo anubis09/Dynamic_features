@@ -182,6 +182,17 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._core: Core = Core(agent=self._agent, mdp=self._mdp)
         self._logger.info("Core initialized successfully")
 
+    def _on_epoch_end(self, epoch: int) -> Optional[Dict]:
+        """Optional hook called at the end of every training epoch, after learning and evaluation.
+
+        Override in subclasses to inject epoch-level behaviour (e.g. feature
+        retraining, checkpointing). Default is a no-op.
+
+        Args:
+            epoch (int): The epoch that just completed (1-indexed).
+        """
+        pass
+
     @abstractmethod
     def _configure_policy_exploration_behavior(self, param: Parameter) -> None:
         """Updates the policy's exploration parameter for the current step.
@@ -277,8 +288,11 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
                     f"Epoch {epoch}/{n_epochs}: J={J_curr:.3f}, dJ={dJ_curr:.3f}, exp_param={exp_param:.3f}"
                 )
 
+            # Usually None
+            to_log = self._on_epoch_end(epoch)
+
             if wandb_active:
-                self._log_to_wandb(J=J_curr, dJ=dJ_curr, step=epoch)
+                self._log_to_wandb(J=J_curr, dJ=dJ_curr, step=epoch, extra_metrics=to_log)
 
         if wandb_active:
             wandb.finish()
