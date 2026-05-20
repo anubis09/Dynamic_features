@@ -33,6 +33,8 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
     n_clusters: int
     clustering_training_states_multiplier: int
     approximator: ApproximatorConfig
+    retrain_features: bool
+    retrain_interval: int
 
 
 @dataclass
@@ -65,6 +67,8 @@ class SarsaLambdaDTConfig(ExperimentConfig):
                 min_delta=0.005,
                 patience=5,
             ),
+            retrain_features=True,
+            retrain_interval=10,
         )
     )
     train: TrainingConfig = field(

@@ -1,4 +1,4 @@
-from typing import final
+from typing import Dict, Optional, final
 
 import numpy as np
 from mushroom_rl.algorithms.value import TrueOnlineSARSALambda
@@ -14,7 +14,7 @@ from dynamic_features.methods import ClusteringFeatures, get_states_from_mdp
 
 @final
 class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
-    __slots__ = ["_n_tilings", "_n_tiles", "_features"]
+    __slots__ = ["_n_tilings", "_n_tiles", "_tilings", "_features"]
 
     def __init__(
         self,
@@ -54,15 +54,44 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         """
         self._policy: EpsGreedy = EpsGreedy(epsilon=1.0)
 
+    def _train_feature_representation(self, is_retrain: bool = False) -> Dict:
+        """Collects environment states, trains the tiling clustering and approximator, and returns accuracy metrics.
+
+        On initial training (`is_retrain=False`) states are sampled randomly from the MDP.
+        On retraining (`is_retrain=True`) states are collected via ``self._core``, biasing the
+        sample toward regions the agent actually visits.
+
+        Args:
+            is_retrain: If ``True``, uses the warm-start clustering path and retrains the approximator
+                        rather than fitting from scratch.
+
+        Returns:
+            Dict mapping approximator accuracy metric names to their scalar values.
+        """
+        core = self._core if is_retrain else None
+        n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
+        X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=core) for _ in range(self._n_tilings)]
+        self._tilings.train(X_per_tilings=X_list, is_retrain=is_retrain)
+        X_train = np.concatenate(X_list, axis=0)
+        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=core)
+        if is_retrain:
+            per_head_acc, overall_acc = self._tilings.retrain_approximator(X_train, X_test)
+        else:
+            per_head_acc, overall_acc = self._tilings.train_approximator(X=X_train, X_test=X_test)
+        return {
+            "approximator/accuracy": overall_acc,
+            **{f"approximator/head_{i}_accuracy": acc.item() for i, acc in enumerate(per_head_acc)},
+        }
+
     def _create_features(self) -> None:
         """Creates clustering based features for linear function approximation.
 
-        This method generates multiple clustering algorithms(tilings) that
-        partition the state space into tiles, providing a rich feature
-        representation.
+        Instantiates the ``ClusteringFeatures`` object, runs the initial feature representation
+        training via :meth:`_train_feature_representation`, and wraps the result in a MushroomRL
+        ``Features`` object for use by the agent.
         """
         input_shape = self._mdp.info.observation_space.shape[0]
-        tilings = ClusteringFeatures(
+        self._tilings = ClusteringFeatures(
             input_shape=input_shape,
             n_tilings=self._n_tilings,
             n_clusters=self._n_tiles,
@@ -70,17 +99,8 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             seed=self._seed,
         )
         self._logger.debug(f"input shape: {input_shape}")
-        n_states_for_train = self._agent_config.clustering_training_states_multiplier * self._n_tiles
-        X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states_for_train) for _ in range(self._n_tilings)]
-        tilings.train(X_per_tilings=X_list)
-        X_train = np.concatenate(X_list, axis=0)
-        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states_for_train)
-        per_head_acc, overall_acc = tilings.train_approximator(X=X_train, X_test=X_test)
-        self._pre_train_metrics = {
-            "approximator/accuracy": overall_acc,
-            **{f"approximator/head_{i}_accuracy": acc.item() for i, acc in enumerate(per_head_acc)},
-        }
-        self._features = Features(n_outputs=tilings.size, function=tilings.encode_approx)
+        self._pre_train_metrics = self._train_feature_representation()
+        self._features = Features(n_outputs=self._tilings.size, function=self._tilings.encode_approx)
 
     @override
     def _create_agent(self) -> None:
@@ -116,3 +136,22 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             learning_rate=scaled_learning_rate,
             lambda_coeff=self._agent_config.lambda_coeff,
         )
+
+    @override
+    def _on_epoch_end(self, epoch: int) -> Optional[Dict]:
+        """Optionally retrains the feature representation at the configured interval.
+
+        Snapshots the current exploration epsilon before retraining so that the policy rollouts
+        used for on-policy state collection do not consume scheduled exploration steps.
+
+        Args:
+            epoch: Current training epoch index.
+
+        Returns:
+            Approximator accuracy metrics if retraining occurred, else ``None``.
+        """
+        if self._agent_config.retrain_features and epoch % self._agent_config.retrain_interval == 0:
+            snapshot_eps = self._exploration_policy_param.get_value()
+            self._configure_policy_exploration_behavior(Parameter(snapshot_eps))
+            return self._train_feature_representation(is_retrain=True)
+        return None

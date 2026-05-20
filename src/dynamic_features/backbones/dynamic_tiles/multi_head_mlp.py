@@ -70,3 +70,28 @@ class MultiHeadMLP(nn.Module):
 
         out = [head(x) for head in self.heads]
         return torch.stack(out, dim=-2)
+
+    def freeze_backbone(self) -> None:
+        """Freezes all backbone parameters by setting ``requires_grad=False``.
+
+        Subsequent optimizer steps will not update the backbone. Does not
+        affect the forward pass or inference.
+        """
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+
+    def unfreeze_backbone(self) -> None:
+        """Restores backbone parameters to trainable by setting ``requires_grad=True``."""
+        for param in self.backbone.parameters():
+            param.requires_grad = True
+
+    def reset_heads(self) -> None:
+        """Re-initializes all head weights and biases to their default values.
+
+        Each head is a single ``nn.Linear`` layer; this calls
+        ``reset_parameters()`` on every head, which re-applies Kaiming uniform
+        initialization. Useful before retraining heads on a new set of cluster
+        assignments.
+        """
+        for head in self.heads:
+            head.reset_parameters()
