@@ -64,7 +64,7 @@ environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
 algorithm=sarsa_lambda_dt \
 algorithm.policy.final_exp_frame=15_000,30_000 \
 algorithm.agent.n_tilings=8,16,32 \
-algorithm.agent.n_clusters=4,8,16,24 \
+algorithm.agent.n_clusters=16,24 \
 algorithm.agent.lambda_coeff=0.5,0.75,0.9,0.99 \
 wandb_log=True wandb.job_type="sarsa_lambda_dt_plain_sweep"
 ```
