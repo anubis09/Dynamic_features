@@ -29,13 +29,13 @@ class RainbowAgentConfig(AgentConfig):
 class RainbowConfig(ExperimentConfig):
     _target_: str = "dynamic_features.experiments.RainbowExperiment"
     policy: PolicyConfig = field(
-        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=15_000)
+        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=30_000)
     )
     agent: RainbowAgentConfig = field(
         default_factory=lambda: RainbowAgentConfig(
             initial_replay_size=10_000,
             max_replay_size=50_000,
-            target_update_frequency=1_000,
+            target_update_frequency=500,
             n_atoms=51,
             n_steps_returns=3,
             alpha_coeff=0.6,
@@ -43,7 +43,7 @@ class RainbowConfig(ExperimentConfig):
             beta_starting=0.4,
             beta_final=1.0,
             # beta frame is usually max_steps // train frequency
-            batch_size=64,
+            batch_size=128,
             n_features=128,
             optimizer=Optimizers.ADAM,
             learning_rate=1e-4,

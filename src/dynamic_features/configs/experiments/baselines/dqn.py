@@ -25,18 +25,18 @@ class DqnAgentConfig(AgentConfig):
 class DqnConfig(ExperimentConfig):
     _target_: str = "dynamic_features.experiments.DqnExperiment"
     policy: PolicyConfig = field(
-        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=10_000)
+        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=15_000)
     )
     agent: DqnAgentConfig = field(
         default_factory=lambda: DqnAgentConfig(
             initial_replay_size=10_000,
             max_replay_size=50_000,
-            target_update_frequency=100,
+            target_update_frequency=500,
             batch_size=64,
-            n_features=64,
+            n_features=128,
             loss=Losses.HUBER,
             optimizer=Optimizers.ADAM,
-            learning_rate=1e-4,
+            learning_rate=5e-4,
         )
     )
     train: TrainingConfig = field(
