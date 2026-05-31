@@ -41,7 +41,7 @@ markers = [
 [tool.basedpyright]
 typeCheckingMode = "standard"
 include = ["src"]
-ignore = ["**/__pycache__", ".venv"]
+ignore = ["**/__pycache__", ".venv", "results/"]
 allowedUntypedLibraries = ["hydra","mushroom_rl", "torch"]
 reportPrivateImportUsage = false
 

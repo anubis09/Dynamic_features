@@ -39,16 +39,16 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
 class SarsaLambdaDTConfig(ExperimentConfig):
     _target_: str = "dynamic_features.experiments.SarsaLambdaDTExperiment"
     policy: PolicyConfig = field(
-        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=10_000)
+        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=30_000)
     )
     agent: SarsaLambdaDTAgentConfig = field(
         default_factory=lambda: SarsaLambdaDTAgentConfig(
-            n_tilings=10,
-            n_clusters=20,
-            lambda_coeff=0.99,
+            n_tilings=24,
+            n_clusters=48,
+            lambda_coeff=0.9,
             # Scales the number of states sampled to train the clustering features.
             # Total training states = n_clusters * clustering_training_states_multiplier.
-            clustering_training_states_multiplier=500,
+            clustering_training_states_multiplier=250,
             # in this case we mean the learning_rate pre scaling.
             learning_rate=0.1,
             approximator=ApproximatorConfig(
@@ -61,7 +61,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
                 eval_size=0.1,
                 loss=Losses.CE,
                 optimizer=Optimizers.ADAM,
-                n_epochs=20,
+                n_epochs=5,
                 min_delta=0.005,
                 patience=5,
             ),
