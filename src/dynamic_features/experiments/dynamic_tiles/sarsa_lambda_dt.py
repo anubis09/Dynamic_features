@@ -150,7 +150,11 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         Returns:
             Approximator accuracy metrics if retraining occurred, else ``None``.
         """
-        if self._agent_config.retrain_features and epoch % self._agent_config.retrain_interval == 0:
+        if (
+            self._agent_config.retrain_features
+            and epoch % self._agent_config.retrain_interval == 0
+            and epoch != self._training_config.n_epochs
+        ):
             snapshot_eps = self._exploration_policy_param.get_value()
             self._configure_policy_exploration_behavior(Parameter(snapshot_eps))
             return self._train_feature_representation(is_retrain=True)
