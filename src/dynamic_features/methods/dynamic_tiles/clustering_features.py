@@ -100,27 +100,24 @@ class ClusteringFeatures:
         X_scaled = cast(np.ndarray, self._scaler.transform(np.atleast_2d(X)))
         return X_scaled.squeeze(0) if is_1d else X_scaled
 
-    def train(self, X_per_tilings: List[np.ndarray], is_retrain: bool = False) -> None:
+    def train(self, X_per_tilings: List[np.ndarray]) -> None:
         """Fits all KMeans tilings in parallel on their respective state samples.
 
-        On first call (``is_retrain=False``) the internal ``StandardScaler`` is
-        fitted on the concatenation of all per-tiling arrays so that every
-        subsequent normalization uses the same scale. On retraining
-        (``is_retrain=True``) the scaler is kept fixed, preserving the original
-        normalization and ensuring the new centroids live in the same space as
-        the old ones.
+        The internal ``StandardScaler`` is refit on the concatenation of all
+        per-tiling arrays on every call, so the scaler, the KMeans centroids and
+        any subsequent approximator training/inference all live in the same
+        normalized space. When called to adapt to a shifted state distribution,
+        the approximator must be retrained afterwards, since its previous fit
+        assumes the old scale and cluster assignments.
 
         Args:
             X_per_tilings: List of state arrays, one per tiling, each of shape
                 (n_samples, n_features). The i-th array is passed to the i-th
                 tiling's ``train`` method. Must have exactly ``n_tilings`` elements.
-            is_retrain: If ``False`` (default), refit the scaler before training.
-                If ``True``, skip scaler refitting and reuse the existing one.
         """
         assert len(X_per_tilings) == self._n_tilings
         self._logger.info("Starting training of each tiling.")
-        if not is_retrain:
-            self._scaler.fit(np.concatenate(X_per_tilings, axis=0))
+        self._scaler.fit(np.concatenate(X_per_tilings, axis=0))
         X_normalized_per_tilings = [self._scaler.transform(X) for X in X_per_tilings]
         Parallel(n_jobs=-1, prefer="threads")(
             delayed(tiling.train)(X=X) for X, tiling in zip(X_normalized_per_tilings, self._tilings)
@@ -131,14 +128,18 @@ class ClusteringFeatures:
         self,
         X: np.ndarray,
         X_test: np.ndarray,
+        reset_heads: bool = False,
     ) -> Tuple[torch.Tensor, float]:
-        """Trains all MultiHeadMLP parameters (backbone + heads) from their current state.
+        """Trains all MultiHeadMLP parameters (backbone + heads) on the current KMeans assignments.
 
         Creates an optimizer covering all model parameters and delegates the
-        training procedure to ``_fit_approximator``. Use this for the initial
-        training after the KMeans tilings have been fitted for the first time.
-        For subsequent feature retraining use ``retrain_approximator`` instead,
-        which freezes the backbone and only updates the heads.
+        training procedure to ``_fit_approximator``. Use ``reset_heads=False``
+        for the initial training after the KMeans tilings have been fitted for
+        the first time. Use ``reset_heads=True`` when retraining after the
+        tilings have been refit on a shifted state distribution: the cluster
+        labels are re-assigned arbitrarily, so the existing heads are reset to a
+        fresh initialization while the backbone is kept as a warm start and
+        fine-tuned together with the heads.
 
         Args:
             X: Training state array of shape (n_samples, n_features). Cast to
@@ -146,46 +147,19 @@ class ClusteringFeatures:
             X_test: Hold-out state array of shape (n_test_samples, n_features)
                 used only for post-training accuracy evaluation; it does not
                 influence training or early stopping.
+            reset_heads: If ``True``, re-initialize the head weights before
+                training. The backbone is always trainable.
 
         Returns:
             A tuple ``(per_head_acc, overall_acc)`` evaluated on ``X_test``, where:
                 - ``per_head_acc``: Tensor of shape ``(n_tilings,)`` with per-head accuracy.
                 - ``overall_acc``: Macro-average as a Python float.
         """
+        if reset_heads:
+            self._approximator.reset_heads()
         optimizer = self._approximator_config.optimizer.get_class()
         optimizer = optimizer(params=self._approximator.parameters(), lr=self._approximator_config.lr)
         return self._fit_approximator(X=X, X_test=X_test, optimizer=optimizer)
-
-    def retrain_approximator(self, X: np.ndarray, X_test: np.ndarray) -> Tuple[torch.Tensor, float]:
-        """Retrains only the classification heads after the KMeans tilings have been updated.
-
-        Freezes the backbone so that its learned state representations are
-        preserved, resets all head weights to their initial values, and creates
-        an optimizer scoped exclusively to the head parameters. Training then
-        proceeds via ``_fit_approximator`` using the new cluster assignments
-        produced by the already-retrained tilings as pseudo-labels.
-
-        Call this after ``train(is_retrain=True)`` whenever the agent's state
-        distribution has shifted and the tilings need to adapt. The backbone
-        is unfrozen before returning.
-
-        Args:
-            X: Training state array of shape (n_samples, n_features).
-            X_test: Hold-out state array of shape (n_test_samples, n_features)
-                used only for post-training accuracy evaluation.
-
-        Returns:
-            A tuple ``(per_head_acc, overall_acc)`` evaluated on ``X_test``, where:
-                - ``per_head_acc``: Tensor of shape ``(n_tilings,)`` with per-head accuracy.
-                - ``overall_acc``: Macro-average as a Python float.
-        """
-        self._approximator.freeze_backbone()
-        self._approximator.reset_heads()
-        optimizer = self._approximator_config.optimizer.get_class()
-        optimizer = optimizer(params=self._approximator.heads.parameters(), lr=self._approximator_config.lr)
-        per_head_acc, overall_acc = self._fit_approximator(X=X, X_test=X_test, optimizer=optimizer)
-        self._approximator.unfreeze_backbone()
-        return per_head_acc, overall_acc
 
     def _fit_approximator(
         self, X: np.ndarray, X_test: np.ndarray, optimizer: torch.optim.Optimizer
@@ -196,7 +170,7 @@ class ClusteringFeatures:
         ``predict``, normalizes ``X`` with the existing scaler, splits into
         train/validation sets, and runs the ``Trainer`` with early stopping.
         The caller is responsible for configuring which parameters the optimizer
-        covers and for any pre-training setup (e.g. freezing the backbone).
+        covers and for any pre-training setup (e.g. resetting the heads).
 
         Args:
             X: Training state array of shape (n_samples, n_features). Cast to

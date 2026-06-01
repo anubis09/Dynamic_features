@@ -62,8 +62,10 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         sample toward regions the agent actually visits.
 
         Args:
-            is_retrain: If ``True``, uses the warm-start clustering path and retrains the approximator
-                        rather than fitting from scratch.
+            is_retrain: If ``True``, collects states on-policy via ``self._core`` and resets the
+                        approximator heads before retraining (the KMeans tilings are always refit
+                        from scratch). If ``False``, samples states randomly and trains the
+                        approximator from its current initialization.
 
         Returns:
             Dict mapping approximator accuracy metric names to their scalar values.
@@ -71,13 +73,10 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         core = self._core if is_retrain else None
         n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
         X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=core) for _ in range(self._n_tilings)]
-        self._tilings.train(X_per_tilings=X_list, is_retrain=is_retrain)
+        self._tilings.train(X_per_tilings=X_list)
         X_train = np.concatenate(X_list, axis=0)
         X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=core)
-        if is_retrain:
-            per_head_acc, overall_acc = self._tilings.retrain_approximator(X_train, X_test)
-        else:
-            per_head_acc, overall_acc = self._tilings.train_approximator(X=X_train, X_test=X_test)
+        per_head_acc, overall_acc = self._tilings.train_approximator(X=X_train, X_test=X_test, reset_heads=is_retrain)
         return {
             "approximator/accuracy": overall_acc,
             **{f"approximator/head_{i}_accuracy": acc.item() for i, acc in enumerate(per_head_acc)},
