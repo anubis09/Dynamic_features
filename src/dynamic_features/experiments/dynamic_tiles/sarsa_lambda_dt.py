@@ -1,10 +1,11 @@
-from typing import Dict, Optional, final
+from typing import Dict, List, Optional, final
 
 import numpy as np
 from mushroom_rl.algorithms.value import TrueOnlineSARSALambda
-from mushroom_rl.features import Features
+from mushroom_rl.features import Features, get_action_features
 from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import Parameter
+from sklearn.metrics import adjusted_rand_score
 from typing_extensions import override
 
 from dynamic_features.configs import EnvConfig, PolicyConfig, SarsaLambdaDTAgentConfig, TrainingConfig, WandbConfig
@@ -14,6 +15,24 @@ from dynamic_features.methods import ClusteringFeatures, get_states_from_mdp
 
 @final
 class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
+    """Concrete experiment running True Online SARSA(λ) over clustering-based tile coding.
+
+    Extends :class:`AbstractExp` with the SARSA(λ)-specific logic: it builds the linear
+    function approximator on top of KMeans clustering features, scales the learning rate
+    by the number of tilings, and drives the eligibility-trace agent. When feature
+    retraining is enabled the tilings are periodically refit on freshly collected
+    on-policy states, after which the learned Q-function is re-projected onto the new
+    feature basis (see :meth:`_naive_weight_transfer`).
+
+    Attributes:
+        _n_tilings (int): Number of tilings in the tile coding representation; also the
+            divisor applied to the configured learning rate.
+        _n_tiles (int): Number of KMeans clusters per tiling (one tile per cluster).
+        _tilings (ClusteringFeatures): Clustering-based encoder backing the feature
+            extractor; owns the KMeans models and the approximator.
+        _features (Features): MushroomRL feature wrapper consumed by the agent.
+    """
+
     __slots__ = ["_n_tilings", "_n_tiles", "_tilings", "_features"]
 
     def __init__(
@@ -25,17 +44,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         wandb: WandbConfig,
         seed: int,
     ) -> None:
-        """Concrete experiment implementation for True Online SARSA(λ).
-
-        This class extends `AbstractExp` to implement the specific logic for SARSA(λ),
-        including the initialization of clustring based tile coding features
-        for function approximation and the configuration of the eligibility trace mechanism.
-
-        Attributes:
-            _n_tilings (int): Number of tilings used in the tile coding feature representation.
-            _n_tiles (int): Number of tiles per dimension in each tiling.
-            _features (Features): Clustering-based feature extractor for state representation.
-        """
+        """Stores the tiling/cluster counts and defers the rest of setup to ``AbstractExp``."""
         self._n_tilings: int = agent.n_tilings
         self._n_tiles: int = agent.n_clusters
         super().__init__(policy=policy, agent=agent, train=train, env=env, wandb=wandb, seed=seed)
@@ -54,29 +63,19 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         """
         self._policy: EpsGreedy = EpsGreedy(epsilon=1.0)
 
-    def _train_feature_representation(self, is_retrain: bool = False) -> Dict:
-        """Collects environment states, trains the tiling clustering and approximator, and returns accuracy metrics.
-
-        On initial training (`is_retrain=False`) states are sampled randomly from the MDP.
-        On retraining (`is_retrain=True`) states are collected via ``self._core``, biasing the
-        sample toward regions the agent actually visits.
+    def _train_feature_representation(self, X_list: List[np.ndarray], X_test: np.ndarray) -> Dict:
+        """Trains the tiling clustering and approximator from pre-collected states.
 
         Args:
-            is_retrain: If ``True``, collects states on-policy via ``self._core`` and resets the
-                        approximator heads before retraining (the KMeans tilings are always refit
-                        from scratch). If ``False``, samples states randomly and trains the
-                        approximator from its current initialization.
+            X_list: One state array per tiling, used to fit the KMeans clusters.
+            X_test: Held-out states for approximator evaluation.
 
         Returns:
             Dict mapping approximator accuracy metric names to their scalar values.
         """
-        core = self._core if is_retrain else None
-        n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
-        X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=core) for _ in range(self._n_tilings)]
         self._tilings.train(X_per_tilings=X_list)
         X_train = np.concatenate(X_list, axis=0)
-        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=core)
-        per_head_acc, overall_acc = self._tilings.train_approximator(X=X_train, X_test=X_test, reset_heads=is_retrain)
+        per_head_acc, overall_acc = self._tilings.train_approximator(X=X_train, X_test=X_test)
         return {
             "approximator/accuracy": overall_acc,
             **{f"approximator/head_{i}_accuracy": acc.item() for i, acc in enumerate(per_head_acc)},
@@ -98,7 +97,13 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             seed=self._seed,
         )
         self._logger.debug(f"input shape: {input_shape}")
-        self._pre_train_metrics = self._train_feature_representation()
+        n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
+        # Force float64 so KMeans fit/predict dtypes stay consistent across all (re)collections.
+        X_list = [
+            get_states_from_mdp(mdp=self._mdp, n_states=n_states).astype(np.float64) for _ in range(self._n_tilings)
+        ]
+        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states).astype(np.float64)
+        self._pre_train_metrics = self._train_feature_representation(X_list=X_list, X_test=X_test)
         self._features = Features(n_outputs=self._tilings.size, function=self._tilings.encode_approx)
 
     @override
@@ -136,6 +141,137 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             lambda_coeff=self._agent_config.lambda_coeff,
         )
 
+    def _naive_weight_transfer(self, X_list: List[np.ndarray], X_test: np.ndarray) -> Dict:
+        """Re-projects the learned Q-function onto the retrained feature basis.
+
+        When the tilings are refit the feature vectors change meaning, so the agent's
+        weight vector becomes stale. This solves a ridge-regularized least squares that
+        finds new weights reproducing the old Q-values under the new features, for every
+        (state, action) pair (all actions stacked so none is under-represented):
+
+            min_{w_new} || phi_new @ w_new - phi_old @ w_old ||^2 + lambda ||w_new||^2
+
+        The old representation/value function is snapshotted *before* retraining, the
+        features are retrained, the new weights are solved and installed, and the
+        eligibility trace is zeroed (the old trace indexes a feature space that no
+        longer exists).
+
+        Args:
+            X_list: One on-policy state array per tiling (used to fit the clustering).
+            X_test: Held-out on-policy states used for transfer diagnostics.
+
+        Returns:
+            Approximator-accuracy metrics merged with the transfer diagnostics.
+        """
+        X_train = np.concatenate(X_list, axis=0)
+        n_actions = self._mdp.info.action_space.n
+
+        old_phi_states = self._tilings.encode_approx(X_train)
+        old_q_test = self._agent.Q.predict(self._tilings.encode_approx(X_test))  # (N_test, n_actions)
+        old_clusters_test = self._tilings.predict(X_test)  # (N_test, n_tilings), for partition-drift
+        old_weights = self._agent.Q.get_weights()
+
+        # Stack every (state, action) pair as a row so all actions are equally represented.
+        old_phi_states_actions = np.concatenate(
+            [
+                get_action_features(
+                    phi_state=old_phi_states, action=np.array([[action]] * len(old_phi_states)), n_actions=n_actions
+                )
+                for action in range(n_actions)
+            ],
+            axis=0,
+        )
+        old_q_values = old_phi_states_actions @ old_weights
+
+        to_log = self._train_feature_representation(X_list=X_list, X_test=X_test)
+
+        new_phi_states = self._tilings.encode_approx(X_train)
+        new_phi_states_action = np.concatenate(
+            [
+                get_action_features(
+                    phi_state=new_phi_states, action=np.array([[action]] * len(new_phi_states)), n_actions=n_actions
+                )
+                for action in range(n_actions)
+            ],
+            axis=0,
+        )
+
+        A = new_phi_states_action.T @ new_phi_states_action
+        b = new_phi_states_action.T @ old_q_values
+        A += 1e-3 * np.trace(A) / len(A) * np.eye(len(A))
+        new_weights = np.linalg.solve(a=A, b=b)
+
+        self._agent.Q.set_weights(new_weights)
+        self._agent.e = np.zeros(self._agent.Q.weights_size)
+
+        to_log.update(
+            self._evaluate_weight_transfer(
+                X_test=X_test,
+                old_q_test=old_q_test,
+                old_clusters_test=old_clusters_test,
+                old_weights=old_weights,
+            )
+        )
+        return to_log
+
+    def _evaluate_weight_transfer(
+        self,
+        X_test: np.ndarray,
+        old_q_test: np.ndarray,
+        old_clusters_test: np.ndarray,
+        old_weights: np.ndarray,
+    ) -> Dict:
+        """Computes diagnostics explaining whether the weight transfer preserved policy and value.
+
+        Compares the post-transfer tilings/agent against the pre-transfer snapshots, all on the
+        on-policy ``X_test`` (the distribution that tracks the return). All keys are prefixed
+        ``transfer/`` and individually commented below.
+
+        Args:
+            X_test: Held-out on-policy states.
+            old_q_test: Pre-transfer Q-values on ``X_test``, shape (N_test, n_actions).
+            old_clusters_test: Pre-transfer cluster indices on ``X_test``, shape (N_test, n_tilings).
+            old_weights: Pre-transfer flat weight vector.
+
+        Returns:
+            Dict mapping ``transfer/<name>`` metric keys to scalar floats.
+        """
+        # Post-transfer quantities, read from the already-updated tilings and agent.
+        new_weights = self._agent.Q.get_weights()
+        new_q_test = self._agent.Q.predict(self._tilings.encode_approx(X_test))
+        new_clusters_test = self._tilings.predict(X_test)
+
+        old_greedy, new_greedy = np.argmax(old_q_test, axis=1), np.argmax(new_q_test, axis=1)
+
+        # Advantage given up by the policy change, in old-Q units (0 where the action is kept).
+        states = np.arange(len(X_test))
+        switch_regret = old_q_test[states, old_greedy] - old_q_test[states, new_greedy]
+
+        # Permutation-invariant partition drift, averaged over tilings.
+        ari = np.mean(
+            [adjusted_rand_score(old_clusters_test[:, t], new_clusters_test[:, t]) for t in range(self._n_tilings)]
+        )
+
+        old_weight_norm = np.linalg.norm(old_weights)
+        old_q_abs_mean = np.mean(np.abs(old_q_test))
+
+        return {
+            # value fidelity: mean |Q_old - Q_new| relative to |Q_old| (0 = preserved, NaN early on)
+            "transfer/rMAE_test": float(np.mean(np.abs(old_q_test - new_q_test)) / old_q_abs_mean)
+            if old_q_abs_mean > 1e-8
+            else float("nan"),
+            # policy preservation: % of states with unchanged greedy action, and the old-Q advantage
+            # given up where it flips (the value-weighted policy damage that should track the return)
+            "transfer/preserved_greedy_actions": float(np.mean(old_greedy == new_greedy) * 100),
+            "transfer/switch_regret_mean": float(np.mean(switch_regret)),
+            # representation drift: adjusted Rand index of old vs new partition (1 = unchanged, ~0 = reshuffled)
+            "transfer/cluster_ari": float(ari),
+            # numerical sanity: ||w_new|| / ||w_old||, >> 1 flags a ridge/conditioning blow-up
+            "transfer/weight_norm_ratio": float(np.linalg.norm(new_weights) / old_weight_norm)
+            if old_weight_norm > 1e-8
+            else float("nan"),
+        }
+
     @override
     def _on_epoch_end(self, epoch: int) -> Optional[Dict]:
         """Optionally retrains the feature representation at the configured interval.
@@ -154,7 +290,17 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             and epoch % self._agent_config.retrain_interval == 0
             and epoch != self._training_config.n_epochs
         ):
+            # Freeze epsilon at its current value during collection so that the on-policy
+            # rollouts do not advance the decay schedule. Restored immediately after.
             snapshot_eps = self._exploration_policy_param.get_value()
             self._configure_policy_exploration_behavior(Parameter(snapshot_eps))
-            return self._train_feature_representation(is_retrain=True)
+            n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
+            # Force float64 so KMeans fit/predict dtypes stay consistent across all (re)collections.
+            X_list = [
+                get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core).astype(np.float64)
+                for _ in range(self._n_tilings)
+            ]
+            X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core).astype(np.float64)
+            self._configure_policy_exploration_behavior(self._exploration_policy_param)
+            return self._naive_weight_transfer(X_list=X_list, X_test=X_test)
         return None

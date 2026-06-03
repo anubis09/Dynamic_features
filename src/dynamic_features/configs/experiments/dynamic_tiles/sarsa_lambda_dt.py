@@ -63,7 +63,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
                 eval_size=0.1,
                 loss=Losses.CE,
                 optimizer=Optimizers.ADAM,
-                n_epochs=5,
+                n_epochs=20,
                 min_delta=0.005,
                 patience=5,
             ),

@@ -124,22 +124,12 @@ class ClusteringFeatures:
         )
         self._logger.info("Train over.")
 
-    def train_approximator(
-        self,
-        X: np.ndarray,
-        X_test: np.ndarray,
-        reset_heads: bool = False,
-    ) -> Tuple[torch.Tensor, float]:
+    def train_approximator(self, X: np.ndarray, X_test: np.ndarray) -> Tuple[torch.Tensor, float]:
         """Trains all MultiHeadMLP parameters (backbone + heads) on the current KMeans assignments.
 
-        Creates an optimizer covering all model parameters and delegates the
-        training procedure to ``_fit_approximator``. Use ``reset_heads=False``
-        for the initial training after the KMeans tilings have been fitted for
-        the first time. Use ``reset_heads=True`` when retraining after the
-        tilings have been refit on a shifted state distribution: the cluster
-        labels are re-assigned arbitrarily, so the existing heads are reset to a
-        fresh initialization while the backbone is kept as a warm start and
-        fine-tuned together with the heads.
+        Head weights are always reset before training because cluster label assignments are
+        arbitrary after each KMeans refit, making old head weights meaningless. The backbone
+        is kept as a warm start and fine-tuned together with the heads.
 
         Args:
             X: Training state array of shape (n_samples, n_features). Cast to
@@ -147,16 +137,13 @@ class ClusteringFeatures:
             X_test: Hold-out state array of shape (n_test_samples, n_features)
                 used only for post-training accuracy evaluation; it does not
                 influence training or early stopping.
-            reset_heads: If ``True``, re-initialize the head weights before
-                training. The backbone is always trainable.
 
         Returns:
             A tuple ``(per_head_acc, overall_acc)`` evaluated on ``X_test``, where:
                 - ``per_head_acc``: Tensor of shape ``(n_tilings,)`` with per-head accuracy.
                 - ``overall_acc``: Macro-average as a Python float.
         """
-        if reset_heads:
-            self._approximator.reset_heads()
+        self._approximator.reset_heads()
         optimizer = self._approximator_config.optimizer.get_class()
         optimizer = optimizer(params=self._approximator.parameters(), lr=self._approximator_config.lr)
         return self._fit_approximator(X=X, X_test=X_test, optimizer=optimizer)
@@ -164,13 +151,12 @@ class ClusteringFeatures:
     def _fit_approximator(
         self, X: np.ndarray, X_test: np.ndarray, optimizer: torch.optim.Optimizer
     ) -> Tuple[torch.Tensor, float]:
-        """Shared training procedure for both full training and head-only retraining.
+        """Core training procedure: fits pseudo-labels, normalizes, and runs the Trainer with early stopping.
 
         Generates pseudo-labels from the currently fitted KMeans tilings via
         ``predict``, normalizes ``X`` with the existing scaler, splits into
         train/validation sets, and runs the ``Trainer`` with early stopping.
-        The caller is responsible for configuring which parameters the optimizer
-        covers and for any pre-training setup (e.g. resetting the heads).
+        The caller is responsible for configuring which parameters the optimizer covers.
 
         Args:
             X: Training state array of shape (n_samples, n_features). Cast to
