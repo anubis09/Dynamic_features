@@ -98,11 +98,8 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         )
         self._logger.debug(f"input shape: {input_shape}")
         n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
-        # Force float64 so KMeans fit/predict dtypes stay consistent across all (re)collections.
-        X_list = [
-            get_states_from_mdp(mdp=self._mdp, n_states=n_states).astype(np.float64) for _ in range(self._n_tilings)
-        ]
-        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states).astype(np.float64)
+        X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states) for _ in range(self._n_tilings)]
+        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states)
         self._pre_train_metrics = self._train_feature_representation(X_list=X_list, X_test=X_test)
         self._features = Features(n_outputs=self._tilings.size, function=self._tilings.encode_approx)
 
@@ -184,7 +181,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
 
         to_log = self._train_feature_representation(X_list=X_list, X_test=X_test)
 
-        new_phi_states = self._tilings.encode_approx(X_train).astype(np.float64)
+        new_phi_states = self._tilings.encode_approx(X_train)
 
         A = new_phi_states.T @ new_phi_states  # (n_features, n_features)
         b = new_phi_states.T @ old_q_values  # (n_features, n_actions)
@@ -286,12 +283,10 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             snapshot_eps = self._exploration_policy_param.get_value()
             self._configure_policy_exploration_behavior(Parameter(snapshot_eps))
             n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
-            # Force float64 so KMeans fit/predict dtypes stay consistent across all (re)collections.
             X_list = [
-                get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core).astype(np.float64)
-                for _ in range(self._n_tilings)
+                get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core) for _ in range(self._n_tilings)
             ]
-            X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core).astype(np.float64)
+            X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core)
             self._configure_policy_exploration_behavior(self._exploration_policy_param)
             return self._naive_weight_transfer(X_list=X_list, X_test=X_test)
         return None

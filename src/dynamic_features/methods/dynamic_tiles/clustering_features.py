@@ -97,7 +97,7 @@ class ClusteringFeatures:
     def _normalize(self, X: np.ndarray) -> np.ndarray:
         """Applies the fitted StandardScaler, preserving the input dimensionality."""
         is_1d = X.ndim == 1
-        X_scaled = cast(np.ndarray, self._scaler.transform(np.atleast_2d(X)))
+        X_scaled = cast(np.ndarray, self._scaler.transform(np.atleast_2d(X))).astype(np.float32)
         return X_scaled.squeeze(0) if is_1d else X_scaled
 
     def train(self, X_per_tilings: List[np.ndarray]) -> None:
@@ -182,7 +182,7 @@ class ClusteringFeatures:
 
         y = self.predict(X).astype(np.int64)
 
-        X_scaled = self._normalize(X).astype(np.float32)
+        X_scaled = self._normalize(X)
         X_train, X_eval, y_train, y_eval = train_test_split(
             X_scaled, y, test_size=self._approximator_config.eval_size, random_state=42
         )
@@ -225,7 +225,7 @@ class ClusteringFeatures:
                 - ``overall_acc``: Macro-average of ``per_head_acc`` as a Python float.
         """
         y_test = self.predict(X=X)
-        test_ds = TensorDataset(torch.from_numpy(self._normalize(X).astype(np.float32)), torch.from_numpy(y_test))
+        test_ds = TensorDataset(torch.from_numpy(self._normalize(X)), torch.from_numpy(y_test))
         test_dataloader = DataLoader(dataset=test_ds, batch_size=128)
 
         all_preds = []
@@ -256,7 +256,7 @@ class ClusteringFeatures:
             One-hot encoded array of shape (n_samples, n_tilings * n_clusters)
             for batch input, or (n_tilings * n_clusters,) for a single state.
         """
-        X_tensor = torch.from_numpy(self._normalize(X).astype(np.float32))
+        X_tensor = torch.from_numpy(self._normalize(X))
 
         with torch.inference_mode():
             # logits: (n_samples, n_heads, n_clusters) or (n_heads, n_clusters)
@@ -265,7 +265,7 @@ class ClusteringFeatures:
         preds = torch.nn.functional.one_hot(classes, num_classes=self._n_clusters)
         # flatten last two dims to produce a single concatenated one-hot vector
         preds = preds.flatten(start_dim=-2)
-        return preds.numpy()
+        return preds.numpy().astype(np.float32)
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Predict cluster indices for each state across all tilings.

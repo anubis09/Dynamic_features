@@ -27,8 +27,7 @@ def get_states_from_mdp(mdp: Environment, n_states: int, core: Union[Core, None]
     """
     if core is None:
         state_dim = mdp.info.observation_space.shape[0]
-        dtype = mdp.info.observation_space.high.dtype
-        states = np.empty((n_states, state_dim), dtype=dtype)
+        states = np.empty((n_states, state_dim), dtype=np.float32)
         actions = np.random.randint(mdp.info.action_space.n, size=n_states)
         mdp.reset()
         for i in range(n_states):
@@ -56,4 +55,4 @@ def get_states_from_mdp(mdp: Environment, n_states: int, core: Union[Core, None]
         # 5. lasts
         #
         # So we just return the [0] element
-        return parse_dataset(dataset)[0]
+        return parse_dataset(dataset)[0].astype(np.float32)
