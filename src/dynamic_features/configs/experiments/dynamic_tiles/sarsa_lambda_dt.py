@@ -35,6 +35,7 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
     approximator: ApproximatorConfig
     retrain_features: bool
     retrain_interval: int
+    retrain_regularizer: float
 
 
 @dataclass
@@ -69,6 +70,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             ),
             retrain_features=True,
             retrain_interval=10,
+            retrain_regularizer=1e-3,
         )
     )
     train: TrainingConfig = field(

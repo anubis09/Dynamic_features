@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, final
 
 import numpy as np
 from mushroom_rl.algorithms.value import TrueOnlineSARSALambda
-from mushroom_rl.features import Features, get_action_features
+from mushroom_rl.features import Features
 from mushroom_rl.policy import EpsGreedy
 from mushroom_rl.utils.parameters import Parameter
 from sklearn.metrics import adjusted_rand_score
@@ -145,11 +145,19 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         """Re-projects the learned Q-function onto the retrained feature basis.
 
         When the tilings are refit the feature vectors change meaning, so the agent's
-        weight vector becomes stale. This solves a ridge-regularized least squares that
-        finds new weights reproducing the old Q-values under the new features, for every
-        (state, action) pair (all actions stacked so none is under-represented):
+        weight vector becomes stale. The linear Q-function keeps an independent weight
+        block per action (``Q(s, a) = phi(s) . w_a``), so per action this solves a
+        ridge-regularized least squares for new weights that reproduce the old Q-values
+        under the new features:
 
-            min_{w_new} || phi_new @ w_new - phi_old @ w_old ||^2 + lambda ||w_new||^2
+            min_{w_a_new} || phi_new @ w_a_new - phi_old @ w_a_old ||^2 + eps ||w_a_new||^2
+
+        Because every action shares the same feature matrix, all action blocks are solved
+        together as a single normal-equations system: one Gram matrix
+        ``A = phi_new.T @ phi_new`` with a multi-column right-hand side (one column per
+        action). The ridge term ``eps`` is scaled to the Gram matrix
+        (``1e-3 * mean(diag(A))``) so it conditions the solve without depending on the
+        feature scale.
 
         The old representation/value function is snapshotted *before* retraining, the
         features are retrained, the new weights are solved and installed, and the
@@ -170,36 +178,19 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         old_q_test = self._agent.Q.predict(self._tilings.encode_approx(X_test))  # (N_test, n_actions)
         old_clusters_test = self._tilings.predict(X_test)  # (N_test, n_tilings), for partition-drift
         old_weights = self._agent.Q.get_weights()
+        old_weights = np.reshape(old_weights, (n_actions, self._features.size))
 
-        # Stack every (state, action) pair as a row so all actions are equally represented.
-        old_phi_states_actions = np.concatenate(
-            [
-                get_action_features(
-                    phi_state=old_phi_states, action=np.array([[action]] * len(old_phi_states)), n_actions=n_actions
-                )
-                for action in range(n_actions)
-            ],
-            axis=0,
-        )
-        old_q_values = old_phi_states_actions @ old_weights
+        old_q_values = old_phi_states @ old_weights.T  # (N_train, N_actions)
 
         to_log = self._train_feature_representation(X_list=X_list, X_test=X_test)
 
-        new_phi_states = self._tilings.encode_approx(X_train)
-        new_phi_states_action = np.concatenate(
-            [
-                get_action_features(
-                    phi_state=new_phi_states, action=np.array([[action]] * len(new_phi_states)), n_actions=n_actions
-                )
-                for action in range(n_actions)
-            ],
-            axis=0,
-        )
+        new_phi_states = self._tilings.encode_approx(X_train).astype(np.float64)
 
-        A = new_phi_states_action.T @ new_phi_states_action
-        b = new_phi_states_action.T @ old_q_values
-        A += 1e-3 * np.trace(A) / len(A) * np.eye(len(A))
-        new_weights = np.linalg.solve(a=A, b=b)
+        A = new_phi_states.T @ new_phi_states  # (n_features, n_features)
+        b = new_phi_states.T @ old_q_values  # (n_features, n_actions)
+        A += self._agent_config.retrain_regularizer * np.trace(A) / len(A) * np.eye(len(A))
+        new_weights = np.linalg.solve(a=A, b=b)  # (n_features, n_actions)
+        new_weights = new_weights.T.flatten()
 
         self._agent.Q.set_weights(new_weights)
         self._agent.e = np.zeros(self._agent.Q.weights_size)

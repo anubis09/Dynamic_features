@@ -33,6 +33,8 @@ def test_experiments(environment, algorithm):
     elif algorithm == "sarsa_lambda_dt":
         overrides.append("algorithm.agent.n_tilings=2")
         overrides.append("algorithm.agent.n_clusters=2")
+        overrides.append("algorithm.agent.approximator.n_epochs=1")
+        overrides.append("algorithm.agent.retrain_interval=2")
 
     with initialize_config_dir(version_base=None, config_dir=str(Path(CONFIGS_PATH))):
         cfg = compose(config_name="config", overrides=overrides)
