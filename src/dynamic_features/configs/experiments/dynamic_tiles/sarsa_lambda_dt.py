@@ -36,6 +36,7 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
     retrain_features: bool
     retrain_interval: int
     retrain_regularizer: float
+    weight_transfer_states_multiplier: int
 
 
 @dataclass
@@ -51,7 +52,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             lambda_coeff=0.9,
             # Scales the number of states sampled to train the clustering features.
             # Total training states = n_clusters * clustering_training_states_multiplier.
-            clustering_training_states_multiplier=250,
+            clustering_training_states_multiplier=225,
             # in this case we mean the learning_rate pre scaling.
             learning_rate=0.1,
             approximator=ApproximatorConfig(
@@ -64,13 +65,14 @@ class SarsaLambdaDTConfig(ExperimentConfig):
                 eval_size=0.1,
                 loss=Losses.CE,
                 optimizer=Optimizers.ADAM,
-                n_epochs=20,
+                n_epochs=12,
                 min_delta=0.005,
                 patience=5,
             ),
             retrain_features=True,
             retrain_interval=10,
             retrain_regularizer=1e-3,
+            weight_transfer_states_multiplier=10,
         )
     )
     train: TrainingConfig = field(

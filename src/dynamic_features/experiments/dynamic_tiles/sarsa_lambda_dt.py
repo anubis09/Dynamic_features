@@ -168,7 +168,9 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         Returns:
             Approximator-accuracy metrics merged with the transfer diagnostics.
         """
-        X_train = np.concatenate(X_list, axis=0)
+        X = np.concatenate(X_list, axis=0)
+        n_states_wt = min(len(X_list), self._agent_config.weight_transfer_states_multiplier * self._features.size)
+        X_train = X[np.random.choice(len(X), n_states_wt, replace=False)]
         n_actions = self._mdp.info.action_space.n
 
         old_phi_states = self._tilings.encode_approx(X_train)
