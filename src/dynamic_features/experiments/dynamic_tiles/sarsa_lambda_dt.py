@@ -265,6 +265,64 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             else float("nan"),
         }
 
+    def _evaluate_split_half_stability(self, X_list: List[np.ndarray], X_test: np.ndarray) -> Dict:
+        """Split-half KMeans stability check that isolates sampling noise from distribution drift.
+
+        Reuses the states already collected for the retrain (no extra rollouts, which dominate the
+        cost): the per-tiling arrays in ``X_list`` are pooled and split into two *disjoint* halves,
+        each tiling is refit on an ``n_states`` subsample drawn from one half, and the two resulting
+        partitions are compared on ``X_test`` (already an independent held-out on-policy batch) via
+        the adjusted Rand index, averaged over tilings. The two fits never share a state, so this is
+        a true disjoint split-half rather than a bootstrap; the pool (``n_tilings * n_states``) is far
+        larger than the ``2 * n_states`` needed, so a disjoint split is always feasible here.
+
+        Both clusterings are built with the same base seed, so per-tiling KMeans initialisations
+        match and init variance cannot masquerade as sampling noise. Because both halves come from
+        the same frozen-policy collection, genuine distribution drift is zero by construction: the
+        only thing that can move the partition is the finite sample, so the resulting ARI is a pure
+        sampling-stability score for the *current* training size:
+
+            ARI ~ 1  -> ``n_states`` is enough; the partition is set by the distribution, not the draw.
+            ARI < 1  -> the clustering is under-sampled at the current training size.
+
+        This is the diagnostic counterpart to ``transfer/cluster_ari`` (old vs new partition across
+        a retrain), which mixes sampling noise with genuine distribution drift and so cannot, on its
+        own, tell whether a low value means "too few states" or "the distribution moved".
+
+        Args:
+            X_list: The per-tiling state arrays already collected for the retrain.
+            X_test: The held-out on-policy batch already collected for the retrain, used as eval.
+
+        Returns:
+            Dict with the single ``transfer/splithalf_ari`` metric.
+        """
+        n_states = len(X_list[0])
+        pool = np.concatenate(X_list, axis=0)
+        rng = np.random.default_rng(self._seed)
+        perm = rng.permutation(len(pool))
+        mid = len(perm) // 2
+        disjoint_halves = (pool[perm[:mid]], pool[perm[mid:]])  # no state appears in both
+
+        input_shape = self._mdp.info.observation_space.shape[0]
+        fitted = []
+        for source in disjoint_halves:
+            # One independent n_states subsample per tiling, mirroring the real per-tiling fit size.
+            per_tiling = [source[rng.choice(len(source), n_states, replace=False)] for _ in range(self._n_tilings)]
+            cf = ClusteringFeatures(
+                input_shape=input_shape,
+                n_tilings=self._n_tilings,
+                n_clusters=self._n_tiles,
+                approximator_config=self._agent_config.approximator,
+                seed=self._seed,
+            )
+            cf.train(X_per_tilings=per_tiling)
+            fitted.append(cf)
+
+        labels_a = fitted[0].predict(X_test)  # (N_test, n_tilings)
+        labels_b = fitted[1].predict(X_test)  # (N_test, n_tilings)
+        ari = np.mean([adjusted_rand_score(labels_a[:, t], labels_b[:, t]) for t in range(self._n_tilings)])
+        return {"transfer/splithalf_ari": float(ari)}
+
     @override
     def _on_epoch_end(self, epoch: int) -> Optional[Dict]:
         """Optionally retrains the feature representation at the configured interval.
@@ -293,5 +351,13 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             ]
             X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core)
             self._configure_policy_exploration_behavior(self._exploration_policy_param)
-            return self._naive_weight_transfer(X_list=X_list, X_test=X_test)
+            # Reuse the just-collected states for the split-half diagnostic (no extra rollouts).
+            splithalf = (
+                self._evaluate_split_half_stability(X_list=X_list, X_test=X_test)
+                if self._agent_config.splithalf_stability_check
+                else {}
+            )
+            metrics = self._naive_weight_transfer(X_list=X_list, X_test=X_test)
+            metrics.update(splithalf)
+            return metrics
         return None

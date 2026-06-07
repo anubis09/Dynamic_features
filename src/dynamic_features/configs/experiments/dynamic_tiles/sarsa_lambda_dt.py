@@ -37,6 +37,7 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
     retrain_interval: int
     retrain_regularizer: float
     weight_transfer_states_multiplier: int
+    splithalf_stability_check: bool
 
 
 @dataclass
@@ -73,6 +74,11 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             retrain_interval=10,
             retrain_regularizer=1e-3,
             weight_transfer_states_multiplier=50,
+            # Diagnostic only: at each retrain, refit two independent KMeans on independent
+            # on-policy draws of the configured training size and compare their partitions
+            # (split-half ARI). Isolates sampling noise from distribution drift; adds a second
+            # round of clustering per retrain, so keep off for normal runs.
+            splithalf_stability_check=False,
         )
     )
     train: TrainingConfig = field(
