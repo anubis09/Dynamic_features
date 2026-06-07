@@ -251,9 +251,12 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             if old_q_abs_mean > 1e-8
             else float("nan"),
             # policy preservation: % of states with unchanged greedy action, and the old-Q advantage
-            # given up where it flips (the value-weighted policy damage that should track the return)
+            # given up where it flips, normalized by |Q_old| so it is comparable across reward
+            # scales (0 = policy preserved, larger = more value-weighted policy damage, NaN early on)
             "transfer/preserved_greedy_actions": float(np.mean(old_greedy == new_greedy) * 100),
-            "transfer/switch_regret_mean": float(np.mean(switch_regret)),
+            "transfer/switch_regret_mean": float(np.mean(switch_regret) / old_q_abs_mean)
+            if old_q_abs_mean > 1e-8
+            else float("nan"),
             # representation drift: adjusted Rand index of old vs new partition (1 = unchanged, ~0 = reshuffled)
             "transfer/cluster_ari": float(ari),
             # numerical sanity: ||w_new|| / ||w_old||, >> 1 flags a ridge/conditioning blow-up
