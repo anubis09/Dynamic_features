@@ -53,7 +53,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             lambda_coeff=0.9,
             # Scales the number of states sampled to train the clustering features.
             # Total training states = n_clusters * clustering_training_states_multiplier.
-            clustering_training_states_multiplier=175,
+            clustering_training_states_multiplier=200,
             # in this case we mean the learning_rate pre scaling.
             learning_rate=0.1,
             approximator=ApproximatorConfig(
@@ -66,14 +66,14 @@ class SarsaLambdaDTConfig(ExperimentConfig):
                 eval_size=0.1,
                 loss=Losses.CE,
                 optimizer=Optimizers.ADAM,
-                n_epochs=8,
+                n_epochs=7,
                 min_delta=0.005,
                 patience=5,
             ),
             retrain_features=True,
             retrain_interval=10,
             retrain_regularizer=1e-3,
-            weight_transfer_states_multiplier=75,
+            weight_transfer_states_multiplier=200,
             # Diagnostic only: at each retrain, refit two independent KMeans on independent
             # on-policy draws of the configured training size and compare their partitions
             # (split-half ARI). Isolates sampling noise from distribution drift; adds a second
