@@ -73,7 +73,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             retrain_features=True,
             retrain_interval=10,
             retrain_regularizer=1e-3,
-            weight_transfer_states_multiplier=200,
+            weight_transfer_states_multiplier=100,
             # Diagnostic only: at each retrain, refit two independent KMeans on independent
             # on-policy draws of the configured training size and compare their partitions
             # (split-half ARI). Isolates sampling noise from distribution drift; adds a second
