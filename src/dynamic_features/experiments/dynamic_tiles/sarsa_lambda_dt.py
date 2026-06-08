@@ -298,7 +298,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         """
         n_states = len(X_list[0])
         pool = np.concatenate(X_list, axis=0)
-        rng = np.random.default_rng(self._seed)
+        rng = np.random.default_rng()
         perm = rng.permutation(len(pool))
         mid = len(perm) // 2
         disjoint_halves = (pool[perm[:mid]], pool[perm[mid:]])  # no state appears in both
