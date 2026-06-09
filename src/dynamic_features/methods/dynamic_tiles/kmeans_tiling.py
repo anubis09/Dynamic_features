@@ -1,7 +1,7 @@
 from typing import cast
 
 import numpy as np
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 
 
 class KMeansTilingFitter:
@@ -29,7 +29,7 @@ class KMeansTilingFitter:
         """
         self._n_clusters: int = n_clusters
         self._seed: int = seed
-        self._kmeans = KMeans(n_clusters=self._n_clusters, random_state=self._seed, n_init="auto")
+        self._kmeans = MiniBatchKMeans(n_clusters=self._n_clusters, random_state=self._seed, n_init="auto")
 
     def train(self, X: np.ndarray) -> None:
         """Fits the KMeans model on a set of pre-normalized environment state samples.
@@ -39,7 +39,7 @@ class KMeansTilingFitter:
         Args:
             X: Pre-normalized state array of shape (n_samples, n_features).
         """
-        self._kmeans.fit(X)
+        self._kmeans.partial_fit(X)
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Returns the nearest cluster index for each state.

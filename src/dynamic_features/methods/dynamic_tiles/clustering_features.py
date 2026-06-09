@@ -117,7 +117,7 @@ class ClusteringFeatures:
         """
         assert len(X_per_tilings) == self._n_tilings
         self._logger.info("Starting training of each tiling.")
-        self._scaler.fit(np.concatenate(X_per_tilings, axis=0))
+        self._scaler.partial_fit(np.concatenate(X_per_tilings, axis=0))
         X_normalized_per_tilings = [self._scaler.transform(X) for X in X_per_tilings]
         Parallel(n_jobs=-1, prefer="threads")(
             delayed(tiling.train)(X=X) for X, tiling in zip(X_normalized_per_tilings, self._tilings)
