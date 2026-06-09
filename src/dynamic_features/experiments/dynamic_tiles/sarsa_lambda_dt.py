@@ -233,10 +233,6 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
 
         old_greedy, new_greedy = np.argmax(old_q_test, axis=1), np.argmax(new_q_test, axis=1)
 
-        # Advantage given up by the policy change, in old-Q units (0 where the action is kept).
-        states = np.arange(len(X_test))
-        switch_regret = old_q_test[states, old_greedy] - old_q_test[states, new_greedy]
-
         # Permutation-invariant partition drift, averaged over tilings.
         ari = np.mean(
             [adjusted_rand_score(old_clusters_test[:, t], new_clusters_test[:, t]) for t in range(self._n_tilings)]
@@ -254,9 +250,6 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             # given up where it flips, normalized by |Q_old| so it is comparable across reward
             # scales (0 = policy preserved, larger = more value-weighted policy damage, NaN early on)
             "transfer/preserved_greedy_actions": float(np.mean(old_greedy == new_greedy) * 100),
-            "transfer/switch_regret_mean": float(np.mean(switch_regret) / old_q_abs_mean)
-            if old_q_abs_mean > 1e-8
-            else float("nan"),
             # representation drift: adjusted Rand index of old vs new partition (1 = unchanged, ~0 = reshuffled)
             "transfer/cluster_ari": float(ari),
             # numerical sanity: ||w_new|| / ||w_old||, >> 1 flags a ridge/conditioning blow-up
