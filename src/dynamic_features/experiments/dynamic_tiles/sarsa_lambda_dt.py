@@ -153,7 +153,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         together as a single normal-equations system: one Gram matrix
         ``A = phi_new.T @ phi_new`` with a multi-column right-hand side (one column per
         action). The ridge term ``eps`` is scaled to the Gram matrix
-        (``1e-3 * mean(diag(A))``) so it conditions the solve without depending on the
+        (``1e-3 * diag(A)``) so it conditions the solve without depending on the
         feature scale.
 
         The old representation/value function is snapshotted *before* retraining, the
@@ -187,7 +187,10 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
 
         A = new_phi_states.T @ new_phi_states  # (n_features, n_features)
         b = new_phi_states.T @ old_q_values  # (n_features, n_actions)
-        A += self._agent_config.retrain_regularizer * np.trace(A) / len(A) * np.eye(len(A))
+        # A += self._agent_config.retrain_regularizer * np.trace(A) / len(A) * np.eye(len(A))
+        diag = np.diag(A).copy()
+        diag[diag < 1e-12] = 1e-12  # -> if < 1e-12 the multiplication could become zero -> singular matrix
+        A += np.diag(self._agent_config.retrain_regularizer * diag)
         new_weights = np.linalg.solve(a=A, b=b)  # (n_features, n_actions)
         new_weights = new_weights.T.flatten()
 

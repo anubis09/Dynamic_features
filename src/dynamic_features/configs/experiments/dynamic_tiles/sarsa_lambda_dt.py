@@ -78,7 +78,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             # on-policy draws of the configured training size and compare their partitions
             # (split-half ARI). Isolates sampling noise from distribution drift; adds a second
             # round of clustering per retrain, so keep off for normal runs.
-            splithalf_stability_check=True,
+            splithalf_stability_check=False,
         )
     )
     train: TrainingConfig = field(
