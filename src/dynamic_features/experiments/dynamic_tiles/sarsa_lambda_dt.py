@@ -187,10 +187,11 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
 
         A = new_phi_states.T @ new_phi_states  # (n_features, n_features)
         b = new_phi_states.T @ old_q_values  # (n_features, n_actions)
-        # A += self._agent_config.retrain_regularizer * np.trace(A) / len(A) * np.eye(len(A))
         diag = np.diag(A).copy()
         diag[diag < 1e-12] = 1e-12  # -> if < 1e-12 the multiplication could become zero -> singular matrix
-        A += np.diag(self._agent_config.retrain_regularizer * diag)
+        ridge_term = self._agent_config.retrain_regularizer * diag  # (n_features,)
+        A += np.diag(ridge_term)
+        b += ridge_term.reshape(-1, 1) * old_weights.T  # this way this operation becomes (n_features, n_actions)
         new_weights = np.linalg.solve(a=A, b=b)  # (n_features, n_actions)
         new_weights = new_weights.T.flatten()
 
