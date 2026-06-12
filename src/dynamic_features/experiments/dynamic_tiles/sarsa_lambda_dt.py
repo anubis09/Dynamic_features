@@ -76,9 +76,15 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         self._tilings.train(X_per_tilings=X_list)
         X_train = np.concatenate(X_list, axis=0)
         per_head_acc, overall_acc = self._tilings.train_approximator(X=X_train, X_test=X_test)
+        # Per-dimension scaler statistics: large jumps between retrains warp the KMeans distance
+        # metric even when centroids are unchanged (prime suspect: near-binary dims such as the
+        # LunarLander leg contacts, whose std shifts with the policy).
+        scaler_mean, scaler_scale = self._tilings.scaler_stats
         return {
             "approximator/accuracy": overall_acc,
             **{f"approximator/head_{i}_accuracy": acc.item() for i, acc in enumerate(per_head_acc)},
+            **{f"scaler/mean_dim_{i}": float(m) for i, m in enumerate(scaler_mean)},
+            **{f"scaler/scale_dim_{i}": float(s) for i, s in enumerate(scaler_scale)},
         }
 
     def _create_features(self) -> None:
@@ -138,6 +144,12 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             lambda_coeff=self._agent_config.lambda_coeff,
         )
 
+    @staticmethod
+    def _relative_mae(q_ref: np.ndarray, q_other: np.ndarray) -> float:
+        """Mean |q_ref - q_other| normalized by mean |q_ref|; NaN while q_ref is still ~0."""
+        denom = np.mean(np.abs(q_ref))
+        return float(np.mean(np.abs(q_ref - q_other)) / denom) if denom > 1e-8 else float("nan")
+
     def _naive_weight_transfer(self, X_list: List[np.ndarray], X_test: np.ndarray) -> Dict:
         """Re-projects the learned Q-function onto the retrained feature basis.
 
@@ -180,6 +192,10 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         old_weights = np.reshape(old_weights, (n_actions, self._features.size))
 
         old_q_values = old_phi_states @ old_weights.T  # (N_train, N_actions)
+        # Exact-KMeans snapshot of the test Q-values: its post-transfer counterpart yields
+        # rMAE_test_exact, which compared against rMAE_test (computed with encode_approx)
+        # isolates the MLP's contribution to the transfer error from genuine partition drift.
+        old_q_test_exact = self._tilings.encode(X_test) @ old_weights.T  # (N_test, n_actions)
 
         to_log = self._train_feature_representation(X_list=X_list, X_test=X_test)
 
@@ -193,6 +209,15 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         A += np.diag(ridge_term)
         b += ridge_term.reshape(-1, 1) * old_weights.T  # this way this operation becomes (n_features, n_actions)
         new_weights = np.linalg.solve(a=A, b=b)  # (n_features, n_actions)
+
+        # In-sample residual of the solve itself: if this is already high, the new basis cannot
+        # express the old Q-function and no regularizer tuning will fix the transfer.
+        to_log["transfer/rMAE_train"] = self._relative_mae(q_ref=old_q_values, q_other=new_phi_states @ new_weights)
+        # Same test-set comparison as rMAE_test but through exact KMeans encoding on both sides.
+        to_log["transfer/rMAE_test_exact"] = self._relative_mae(
+            q_ref=old_q_test_exact, q_other=self._tilings.encode(X_test) @ new_weights
+        )
+
         new_weights = new_weights.T.flatten()
 
         self._agent.Q.set_weights(new_weights)
@@ -245,15 +270,27 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         old_weight_norm = np.linalg.norm(old_weights)
         old_q_abs_mean = np.mean(np.abs(old_q_test))
 
+        # Old-Q advantage given up where the greedy action flips. Distinguishes harmless flips
+        # (near-tied actions, common in hovering-like states) from real policy damage, which the
+        # raw flip percentage cannot.
+        rows = np.arange(len(old_greedy))
+        flip_gap = old_q_test[rows, old_greedy] - old_q_test[rows, new_greedy]  # >= 0, zero where preserved
+        flipped = old_greedy != new_greedy
+
         return {
             # value fidelity: mean |Q_old - Q_new| relative to |Q_old| (0 = preserved, NaN early on)
-            "transfer/rMAE_test": float(np.mean(np.abs(old_q_test - new_q_test)) / old_q_abs_mean)
+            "transfer/rMAE_test": self._relative_mae(q_ref=old_q_test, q_other=new_q_test),
+            # policy preservation: % of states with unchanged greedy action
+            "transfer/preserved_greedy_actions": float(np.mean(old_greedy == new_greedy) * 100),
+            # mean advantage given up on flipped states, relative to |Q_old| (NaN if nothing flipped;
+            # small = flips are between near-tied actions, large = the transfer breaks real decisions)
+            "transfer/flip_gap_mean": float(np.mean(flip_gap[flipped]) / old_q_abs_mean)
+            if flipped.any() and old_q_abs_mean > 1e-8
+            else float("nan"),
+            # value-weighted policy damage over ALL test states (flip frequency x flip severity)
+            "transfer/policy_damage": float(np.mean(flip_gap) / old_q_abs_mean)
             if old_q_abs_mean > 1e-8
             else float("nan"),
-            # policy preservation: % of states with unchanged greedy action, and the old-Q advantage
-            # given up where it flips, normalized by |Q_old| so it is comparable across reward
-            # scales (0 = policy preserved, larger = more value-weighted policy damage, NaN early on)
-            "transfer/preserved_greedy_actions": float(np.mean(old_greedy == new_greedy) * 100),
             # representation drift: adjusted Rand index of old vs new partition (1 = unchanged, ~0 = reshuffled)
             "transfer/cluster_ari": float(ari),
             # numerical sanity: ||w_new|| / ||w_old||, >> 1 flags a ridge/conditioning blow-up

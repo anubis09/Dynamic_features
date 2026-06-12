@@ -143,7 +143,6 @@ class ClusteringFeatures:
                 - ``per_head_acc``: Tensor of shape ``(n_tilings,)`` with per-head accuracy.
                 - ``overall_acc``: Macro-average as a Python float.
         """
-        self._approximator.reset_heads()
         optimizer = self._approximator_config.optimizer.get_class()
         optimizer = optimizer(params=self._approximator.parameters(), lr=self._approximator_config.lr)
         return self._fit_approximator(X=X, X_test=X_test, optimizer=optimizer)
@@ -327,3 +326,12 @@ class ClusteringFeatures:
     def size(self):
         """int: Feature vector dimensionality for 1 sample."""
         return self._n_tilings * self._n_clusters
+
+    @property
+    def scaler_stats(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Tuple of (mean_, scale_) of the internal StandardScaler, one entry per state dimension.
+
+        Only valid after the first ``train`` call. Shifts in these statistics across
+        retrains warp the KMeans distance metric even when centroids do not move.
+        """
+        return self._scaler.mean_, self._scaler.scale_
