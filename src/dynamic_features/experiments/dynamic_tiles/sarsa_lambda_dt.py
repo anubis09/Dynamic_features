@@ -8,7 +8,14 @@ from mushroom_rl.utils.parameters import Parameter
 from sklearn.metrics import adjusted_rand_score
 from typing_extensions import override
 
-from dynamic_features.configs import EnvConfig, PolicyConfig, SarsaLambdaDTAgentConfig, TrainingConfig, WandbConfig
+from dynamic_features.configs import (
+    EnvConfig,
+    PolicyConfig,
+    RetrainTrigger,
+    SarsaLambdaDTAgentConfig,
+    TrainingConfig,
+    WandbConfig,
+)
 from dynamic_features.experiments import AbstractExp
 from dynamic_features.methods import ClusteringFeatures, get_states_from_mdp
 
@@ -33,7 +40,16 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         _features (Features): MushroomRL feature wrapper consumed by the agent.
     """
 
-    __slots__ = ["_n_tilings", "_n_tiles", "_tilings", "_features"]
+    __slots__ = [
+        "_n_tilings",
+        "_n_tiles",
+        "_tilings",
+        "_features",
+        # DRIFT trigger state (unused under INTERVAL).
+        "_drift_reference",  # I_ref: quantization error right after the last fit; None until set
+        "_last_retrain_epoch",  # epoch of the most recent (re)fit, for the min-interval hysteresis
+        "_drift_trigger_count",  # consecutive over-threshold checks, for the patience debounce
+    ]
 
     def __init__(
         self,
@@ -102,6 +118,11 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states)
         self._pre_train_metrics = self._train_feature_representation(X_list=X_list, X_test=X_test)
         self._features = Features(n_outputs=self._tilings.size, function=self._tilings.encode_approx)
+        # DRIFT trigger state. I_ref is set lazily on the first drift check from the first
+        # stashed evaluation batch, since no evaluation rollout has happened yet at setup time.
+        self._drift_reference: Optional[float] = None
+        self._last_retrain_epoch: int = 0
+        self._drift_trigger_count: int = 0
 
     @override
     def _create_agent(self) -> None:
@@ -351,41 +372,119 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         ari = np.mean([adjusted_rand_score(labels_a[:, t], labels_b[:, t]) for t in range(self._n_tilings)])
         return {"transfer/splithalf_ari": float(ari)}
 
-    @override
-    def _on_epoch_end(self, epoch: int) -> Optional[Dict]:
-        """Optionally retrains the feature representation at the configured interval.
+    def _do_retrain(self, epoch: int) -> Dict:
+        """Collects fresh on-policy states, refits the features, and transfers the Q-weights.
 
-        Snapshots the current exploration epsilon before retraining so that the policy rollouts
-        used for on-policy state collection do not consume scheduled exploration steps.
+        Snapshots the current exploration epsilon before collection so that the on-policy
+        rollouts used for state collection do not consume scheduled exploration steps. After
+        the transfer, the drift reference ``I_ref`` is recomputed on the most recent evaluation
+        batch under the *new* centroids and the last-retrain epoch is recorded, so subsequent
+        drift checks measure staleness relative to this fresh fit.
+
+        Args:
+            epoch: Current training epoch index, recorded as the last-retrain epoch.
+
+        Returns:
+            Approximator-accuracy metrics merged with the transfer (and optional split-half)
+            diagnostics.
+        """
+        # Freeze epsilon at its current value during collection so that the on-policy
+        # rollouts do not advance the decay schedule. Restored immediately after.
+        snapshot_eps = self._exploration_policy_param.get_value()
+        self._configure_policy_exploration_behavior(Parameter(snapshot_eps))
+        n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
+        X_list = [
+            get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core) for _ in range(self._n_tilings)
+        ]
+        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core)
+        self._configure_policy_exploration_behavior(self._exploration_policy_param)
+        # Reuse the just-collected states for the split-half diagnostic (no extra rollouts).
+        splithalf = (
+            self._evaluate_split_half_stability(X_list=X_list, X_test=X_test)
+            if self._agent_config.splithalf_stability_check
+            else {}
+        )
+        metrics = self._naive_weight_transfer(X_list=X_list, X_test=X_test)
+        metrics.update(splithalf)
+        # Reset the drift reference against the new centroids so drift is measured from here on.
+        self._reset_drift_reference()
+        self._last_retrain_epoch = epoch
+        self._drift_trigger_count = 0
+        return metrics
+
+    def _reset_drift_reference(self) -> None:
+        """Recomputes ``I_ref`` on the latest evaluation states under the current centroids.
+
+        Uses the greedy-distribution states stashed by ``_evaluate`` (the same distribution the
+        per-epoch drift check uses), so the drift ratio ``I_now / I_ref`` is apples-to-apples.
+        No-op while no evaluation has run yet (reference stays ``None`` and is set lazily later).
+        """
+        if self._last_eval_states is not None:
+            self._drift_reference = self._tilings.quantization_error(self._last_eval_states)
+
+    def _drift_triggered_retrain(self, epoch: int) -> Optional[Dict]:
+        """DRIFT strategy: retrain only when the tiling has gone stale, logging drift every epoch.
+
+        Computes the inertia ratio ``I_now / I_ref`` on the latest greedy evaluation batch and
+        retrains when it stays above ``drift_threshold`` for ``drift_patience`` consecutive checks,
+        provided at least ``drift_min_interval`` epochs have elapsed since the last fit. The drift
+        ratio and threshold are returned every epoch so the signal can be plotted continuously.
 
         Args:
             epoch: Current training epoch index.
 
         Returns:
-            Approximator accuracy metrics if retraining occurred, else ``None``.
+            A metrics dict (drift signal, plus retrain diagnostics when a retrain fires), or
+            ``None`` if drift cannot be measured yet (no evaluation states available).
         """
-        if (
-            self._agent_config.retrain_features
-            and epoch % self._agent_config.retrain_interval == 0
-            and epoch != self._training_config.n_epochs
-        ):
-            # Freeze epsilon at its current value during collection so that the on-policy
-            # rollouts do not advance the decay schedule. Restored immediately after.
-            snapshot_eps = self._exploration_policy_param.get_value()
-            self._configure_policy_exploration_behavior(Parameter(snapshot_eps))
-            n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
-            X_list = [
-                get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core) for _ in range(self._n_tilings)
-            ]
-            X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core)
-            self._configure_policy_exploration_behavior(self._exploration_policy_param)
-            # Reuse the just-collected states for the split-half diagnostic (no extra rollouts).
-            splithalf = (
-                self._evaluate_split_half_stability(X_list=X_list, X_test=X_test)
-                if self._agent_config.splithalf_stability_check
-                else {}
-            )
-            metrics = self._naive_weight_transfer(X_list=X_list, X_test=X_test)
-            metrics.update(splithalf)
+        if self._last_eval_states is None:
+            return None
+        # Lazily anchor the reference on the first available evaluation batch.
+        if self._drift_reference is None:
+            self._reset_drift_reference()
+            return {"drift/ratio": 1.0, "drift/threshold": float(self._agent_config.drift_threshold)}
+
+        i_now = self._tilings.quantization_error(self._last_eval_states)
+        drift = i_now / self._drift_reference if self._drift_reference > 1e-12 else float("inf")
+        threshold = float(self._agent_config.drift_threshold)
+        log: Dict = {"drift/ratio": float(drift), "drift/threshold": threshold}
+
+        cooled_down = epoch - self._last_retrain_epoch >= self._agent_config.drift_min_interval
+        if drift > threshold and cooled_down:
+            self._drift_trigger_count += 1
+        else:
+            self._drift_trigger_count = 0
+
+        if cooled_down and self._drift_trigger_count >= self._agent_config.drift_patience:
+            # _do_retrain resets the reference, the last-retrain epoch and the trigger count.
+            metrics = self._do_retrain(epoch)
+            metrics.update(log)
             return metrics
+        return log
+
+    @override
+    def _on_epoch_end(self, epoch: int) -> Optional[Dict]:
+        """Retrains the feature representation per the configured trigger strategy.
+
+        Dispatches on ``retrain_trigger``: ``INTERVAL`` retrains on a fixed epoch schedule
+        (legacy behavior), while ``DRIFT`` retrains only when the quantization-error drift
+        ratio crosses its threshold and logs that ratio every epoch. Never retrains on the
+        final epoch.
+
+        Args:
+            epoch: Current training epoch index.
+
+        Returns:
+            Metrics to log this epoch (retrain diagnostics and/or the drift signal), or
+            ``None`` when nothing is logged.
+        """
+        if not self._agent_config.retrain_features or epoch == self._training_config.n_epochs:
+            return None
+
+        if self._agent_config.retrain_trigger == RetrainTrigger.DRIFT:
+            return self._drift_triggered_retrain(epoch)
+
+        # INTERVAL: fixed-schedule retrain (byte-for-byte the legacy behavior).
+        if epoch % self._agent_config.retrain_interval == 0:
+            return self._do_retrain(epoch)
         return None

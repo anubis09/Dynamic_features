@@ -7,7 +7,7 @@ from typing import Dict, Generic, List, Optional, Tuple
 import numpy as np
 import wandb
 from mushroom_rl.core import Core, Environment
-from mushroom_rl.utils.dataset import compute_J
+from mushroom_rl.utils.dataset import compute_J, parse_dataset
 from mushroom_rl.utils.parameters import LinearParameter, Parameter
 
 from dynamic_features.configs import EnvConfig, PolicyConfig, TAgentConfig, TrainingConfig, WandbConfig
@@ -66,6 +66,7 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         "_wandb_conf",
         "_logger",
         "_pre_train_metrics",
+        "_last_eval_states",
     ]
 
     def __init__(
@@ -121,6 +122,10 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         )
 
         self._pre_train_metrics: Dict[str, float] = {}
+        # States visited during the most recent evaluation rollout, stashed by
+        # ``_evaluate`` so subclasses can reuse them (e.g. for drift monitoring)
+        # without paying for an extra rollout. None until the first evaluation.
+        self._last_eval_states: Optional[np.ndarray] = None
         self._setup()
 
     def _setup(self) -> None:
@@ -315,6 +320,10 @@ class AbstractExp(ABC, Generic[TAgentConfig]):
         self._configure_policy_exploration_behavior(eval_exploration_param)
 
         dataset = self._core.evaluate(n_episodes=test_episodes, render=False)
+
+        # Stash the visited states (first element of the parsed dataset) so subclasses
+        # can reuse this on-policy, greedy-distribution rollout for free.
+        self._last_eval_states = parse_dataset(dataset)[0].astype(np.float32)
 
         J = np.mean(compute_J(dataset, gamma=1.0)).item()  # Undiscounted return
         dJ = np.mean(compute_J(dataset, gamma=self._gamma)).item()  # Discounted return

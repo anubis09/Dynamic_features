@@ -21,6 +21,7 @@ from .experiments.experiment_conf import (
     Losses,
     Optimizers,
     PolicyConfig,
+    RetrainTrigger,
     TAgentConfig,
     TrainingConfig,
 )
@@ -72,6 +73,7 @@ __all__ = [
     "ExperimentConfig",
     "Losses",
     "Optimizers",
+    "RetrainTrigger",
     "PolicyConfig",
     "TAgentConfig",
     "TrainingConfig",

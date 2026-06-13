@@ -6,6 +6,7 @@ from dynamic_features.configs.experiments.experiment_conf import (
     Losses,
     Optimizers,
     PolicyConfig,
+    RetrainTrigger,
     TrainingConfig,
 )
 
@@ -34,10 +35,20 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
     clustering_training_states_multiplier: int
     approximator: ApproximatorConfig
     retrain_features: bool
+    # Selects how retrains are triggered: a fixed epoch schedule (INTERVAL) or
+    # a quantization-error drift threshold (DRIFT). DRIFT ignores retrain_interval.
+    retrain_trigger: RetrainTrigger
     retrain_interval: int
     retrain_regularizer: float
     weight_transfer_states_multiplier: int
     splithalf_stability_check: bool
+    # --- DRIFT trigger parameters (ignored when retrain_trigger is INTERVAL) ---
+    # Retrain once the inertia ratio I_now / I_ref exceeds this effect-size tolerance.
+    drift_threshold: float
+    # Minimum epochs that must elapse after a retrain before another can fire (hysteresis).
+    drift_min_interval: int
+    # Consecutive over-threshold checks required before retraining (debounce).
+    drift_patience: int
 
 
 @dataclass
@@ -71,9 +82,15 @@ class SarsaLambdaDTConfig(ExperimentConfig):
                 patience=5,
             ),
             retrain_features=True,
+            # INTERVAL keeps the legacy fixed-schedule behavior; switch to DRIFT to enable
+            # quantization-error drift-triggered retraining.
+            retrain_trigger=RetrainTrigger.DRIFT,
             retrain_interval=10,
             retrain_regularizer=1e-3,
             weight_transfer_states_multiplier=100,
+            drift_threshold=1.1,
+            drift_min_interval=5,
+            drift_patience=2,
             # Diagnostic only: at each retrain, refit two independent KMeans on independent
             # on-policy draws of the configured training size and compare their partitions
             # (split-half ARI). Isolates sampling noise from distribution drift; adds a second

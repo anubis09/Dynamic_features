@@ -59,6 +59,23 @@ class KMeansTilingFitter:
         indexes = self._kmeans.predict(X)
         return cast(np.ndarray, indexes)
 
+    def nearest_centroid_distance(self, X: np.ndarray) -> np.ndarray:
+        """Returns the distance from each state to its nearest cluster centroid.
+
+        Used as a per-sample quantization error: how well the current centroids
+        describe each state. A 1-D input is promoted to 2-D via ``np.atleast_2d``.
+
+        Args:
+            X: Pre-normalized state array of shape (n_samples, n_features) or
+                (n_features,) for a single state.
+
+        Returns:
+            Non-squared Euclidean distances of shape (n_samples,), one per state.
+        """
+        X = np.atleast_2d(X)
+        distances = self._kmeans.transform(X)  # (n_samples, n_clusters)
+        return cast(np.ndarray, distances.min(axis=1))
+
     def encode(self, X: np.ndarray) -> np.ndarray:
         """Encodes states as one-hot vectors over the cluster vocabulary.
 
