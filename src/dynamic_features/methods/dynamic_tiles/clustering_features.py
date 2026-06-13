@@ -326,12 +326,3 @@ class ClusteringFeatures:
     def size(self):
         """int: Feature vector dimensionality for 1 sample."""
         return self._n_tilings * self._n_clusters
-
-    @property
-    def scaler_stats(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Tuple of (mean_, scale_) of the internal StandardScaler, one entry per state dimension.
-
-        Only valid after the first ``train`` call. Shifts in these statistics across
-        retrains warp the KMeans distance metric even when centroids do not move.
-        """
-        return self._scaler.mean_, self._scaler.scale_

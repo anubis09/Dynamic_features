@@ -76,15 +76,9 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         self._tilings.train(X_per_tilings=X_list)
         X_train = np.concatenate(X_list, axis=0)
         per_head_acc, overall_acc = self._tilings.train_approximator(X=X_train, X_test=X_test)
-        # Per-dimension scaler statistics: large jumps between retrains warp the KMeans distance
-        # metric even when centroids are unchanged (prime suspect: near-binary dims such as the
-        # LunarLander leg contacts, whose std shifts with the policy).
-        scaler_mean, scaler_scale = self._tilings.scaler_stats
         return {
             "approximator/accuracy": overall_acc,
             **{f"approximator/head_{i}_accuracy": acc.item() for i, acc in enumerate(per_head_acc)},
-            **{f"scaler/mean_dim_{i}": float(m) for i, m in enumerate(scaler_mean)},
-            **{f"scaler/scale_dim_{i}": float(s) for i, s in enumerate(scaler_scale)},
         }
 
     def _create_features(self) -> None:
