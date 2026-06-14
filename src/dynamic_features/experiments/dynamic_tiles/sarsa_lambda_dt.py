@@ -45,10 +45,9 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         "_n_tiles",
         "_tilings",
         "_features",
-        # DRIFT trigger state (unused under INTERVAL).
-        "_drift_reference",  # I_ref: quantization error right after the last fit; None until set
-        "_last_retrain_epoch",  # epoch of the most recent (re)fit, for the min-interval hysteresis
-        "_drift_trigger_count",  # consecutive over-threshold checks, for the patience debounce
+        "_drift_reference",
+        "_last_retrain_epoch",
+        "_drift_trigger_count",
     ]
 
     def __init__(
@@ -63,6 +62,9 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         """Stores the tiling/cluster counts and defers the rest of setup to ``AbstractExp``."""
         self._n_tilings: int = agent.n_tilings
         self._n_tiles: int = agent.n_clusters
+        self._drift_reference: Optional[float] = None
+        self._last_retrain_epoch: int = 0
+        self._drift_trigger_count: int = 0
         super().__init__(policy=policy, agent=agent, train=train, env=env, wandb=wandb, seed=seed)
 
     @override
@@ -118,11 +120,6 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states)
         self._pre_train_metrics = self._train_feature_representation(X_list=X_list, X_test=X_test)
         self._features = Features(n_outputs=self._tilings.size, function=self._tilings.encode_approx)
-        # DRIFT trigger state. I_ref is set lazily on the first drift check from the first
-        # stashed evaluation batch, since no evaluation rollout has happened yet at setup time.
-        self._drift_reference: Optional[float] = None
-        self._last_retrain_epoch: int = 0
-        self._drift_trigger_count: int = 0
 
     @override
     def _create_agent(self) -> None:
@@ -207,10 +204,6 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         old_weights = np.reshape(old_weights, (n_actions, self._features.size))
 
         old_q_values = old_phi_states @ old_weights.T  # (N_train, N_actions)
-        # Exact-KMeans snapshot of the test Q-values: its post-transfer counterpart yields
-        # rMAE_test_exact, which compared against rMAE_test (computed with encode_approx)
-        # isolates the MLP's contribution to the transfer error from genuine partition drift.
-        old_q_test_exact = self._tilings.encode(X_test) @ old_weights.T  # (N_test, n_actions)
 
         to_log = self._train_feature_representation(X_list=X_list, X_test=X_test)
 
@@ -224,15 +217,6 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         A += np.diag(ridge_term)
         b += ridge_term.reshape(-1, 1) * old_weights.T  # this way this operation becomes (n_features, n_actions)
         new_weights = np.linalg.solve(a=A, b=b)  # (n_features, n_actions)
-
-        # In-sample residual of the solve itself: if this is already high, the new basis cannot
-        # express the old Q-function and no regularizer tuning will fix the transfer.
-        to_log["transfer/rMAE_train"] = self._relative_mae(q_ref=old_q_values, q_other=new_phi_states @ new_weights)
-        # Same test-set comparison as rMAE_test but through exact KMeans encoding on both sides.
-        to_log["transfer/rMAE_test_exact"] = self._relative_mae(
-            q_ref=old_q_test_exact, q_other=self._tilings.encode(X_test) @ new_weights
-        )
-
         new_weights = new_weights.T.flatten()
 
         self._agent.Q.set_weights(new_weights)
@@ -283,29 +267,12 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         )
 
         old_weight_norm = np.linalg.norm(old_weights)
-        old_q_abs_mean = np.mean(np.abs(old_q_test))
-
-        # Old-Q advantage given up where the greedy action flips. Distinguishes harmless flips
-        # (near-tied actions, common in hovering-like states) from real policy damage, which the
-        # raw flip percentage cannot.
-        rows = np.arange(len(old_greedy))
-        flip_gap = old_q_test[rows, old_greedy] - old_q_test[rows, new_greedy]  # >= 0, zero where preserved
-        flipped = old_greedy != new_greedy
 
         return {
             # value fidelity: mean |Q_old - Q_new| relative to |Q_old| (0 = preserved, NaN early on)
             "transfer/rMAE_test": self._relative_mae(q_ref=old_q_test, q_other=new_q_test),
             # policy preservation: % of states with unchanged greedy action
             "transfer/preserved_greedy_actions": float(np.mean(old_greedy == new_greedy) * 100),
-            # mean advantage given up on flipped states, relative to |Q_old| (NaN if nothing flipped;
-            # small = flips are between near-tied actions, large = the transfer breaks real decisions)
-            "transfer/flip_gap_mean": float(np.mean(flip_gap[flipped]) / old_q_abs_mean)
-            if flipped.any() and old_q_abs_mean > 1e-8
-            else float("nan"),
-            # value-weighted policy damage over ALL test states (flip frequency x flip severity)
-            "transfer/policy_damage": float(np.mean(flip_gap) / old_q_abs_mean)
-            if old_q_abs_mean > 1e-8
-            else float("nan"),
             # representation drift: adjusted Rand index of old vs new partition (1 = unchanged, ~0 = reshuffled)
             "transfer/cluster_ari": float(ari),
             # numerical sanity: ||w_new|| / ||w_old||, >> 1 flags a ridge/conditioning blow-up
@@ -388,8 +355,6 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             Approximator-accuracy metrics merged with the transfer (and optional split-half)
             diagnostics.
         """
-        # Freeze epsilon at its current value during collection so that the on-policy
-        # rollouts do not advance the decay schedule. Restored immediately after.
         snapshot_eps = self._exploration_policy_param.get_value()
         self._configure_policy_exploration_behavior(Parameter(snapshot_eps))
         n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
@@ -398,7 +363,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         ]
         X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core)
         self._configure_policy_exploration_behavior(self._exploration_policy_param)
-        # Reuse the just-collected states for the split-half diagnostic (no extra rollouts).
+
         splithalf = (
             self._evaluate_split_half_stability(X_list=X_list, X_test=X_test)
             if self._agent_config.splithalf_stability_check
@@ -406,7 +371,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         )
         metrics = self._naive_weight_transfer(X_list=X_list, X_test=X_test)
         metrics.update(splithalf)
-        # Reset the drift reference against the new centroids so drift is measured from here on.
+
         self._reset_drift_reference()
         self._last_retrain_epoch = epoch
         self._drift_trigger_count = 0
