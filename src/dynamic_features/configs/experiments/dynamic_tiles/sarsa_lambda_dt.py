@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import Enum
 
 from dynamic_features.configs.experiments.experiment_conf import (
     AgentConfig,
@@ -6,9 +7,13 @@ from dynamic_features.configs.experiments.experiment_conf import (
     Losses,
     Optimizers,
     PolicyConfig,
-    RetrainTrigger,
     TrainingConfig,
 )
+
+
+class RetrainTrigger(Enum):
+    INTERVAL = "interval"
+    DRIFT = "drift"
 
 
 @dataclass

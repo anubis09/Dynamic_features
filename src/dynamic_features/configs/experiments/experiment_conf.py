@@ -27,19 +27,6 @@ class Optimizers(Enum):
         return getattr(torch.optim, self.value)
 
 
-class RetrainTrigger(Enum):
-    """Strategy deciding when clustering features are retrained on-policy.
-
-    INTERVAL: retrain on a fixed epoch schedule (``retrain_interval``).
-    DRIFT: retrain only when the quantization-error drift ratio exceeds a
-        threshold, i.e. when the current tiling has gone stale for the policy's
-        state distribution.
-    """
-
-    INTERVAL = "interval"
-    DRIFT = "drift"
-
-
 @dataclass
 class PolicyConfig:
     initial_exp_rate: float
