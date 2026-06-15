@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, final
+from typing import Dict, List, Optional, Tuple, final
 
 import numpy as np
 from mushroom_rl.algorithms.value import TrueOnlineSARSALambda
@@ -154,7 +154,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             lambda_coeff=self._agent_config.lambda_coeff,
         )
 
-    def _collect_training_states(self, core=None) -> tuple[List[np.ndarray], np.ndarray]:
+    def _collect_training_states(self, core=None) -> Tuple[List[np.ndarray], np.ndarray]:
         """Collects per-tiling training states and a held-out test set.
 
         If clustering_pool_multiplier is set, gathers all tiling data in a single rollout
