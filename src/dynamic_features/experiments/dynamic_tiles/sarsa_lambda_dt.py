@@ -115,9 +115,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             seed=self._seed,
         )
         self._logger.debug(f"input shape: {input_shape}")
-        n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
-        X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states) for _ in range(self._n_tilings)]
-        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states)
+        X_list, X_test = self._collect_training_states(core=None)
         self._pre_train_metrics = self._train_feature_representation(X_list=X_list, X_test=X_test)
         self._features = Features(n_outputs=self._tilings.size, function=self._tilings.encode_approx)
 
@@ -155,6 +153,36 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             learning_rate=scaled_learning_rate,
             lambda_coeff=self._agent_config.lambda_coeff,
         )
+
+    def _collect_training_states(self, core=None) -> tuple[List[np.ndarray], np.ndarray]:
+        """Collects per-tiling training states and a held-out test set.
+
+        If clustering_pool_multiplier is set, gathers all tiling data in a single rollout
+        of pool_multiplier * n_clusters * n_tilings steps, then bootstraps each tiling's
+        training array from that pool. X_test is always a separate rollout so it stays
+        independent of the training data.
+
+        Otherwise falls back to one rollout per tiling plus one for X_test (original
+        behavior, n_tilings + 1 rollouts total).
+
+        Args:
+            core: Core instance for on-policy collection, or None for random policy.
+
+        Returns:
+            (X_list, X_test): X_list[i] has shape (n_states, state_dim).
+        """
+        n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
+        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=core)
+
+        pool_mult = self._agent_config.clustering_pool_multiplier
+        if pool_mult is None:
+            X_list = [get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=core) for _ in range(self._n_tilings)]
+        else:
+            pool_size = pool_mult * self._n_tiles * self._n_tilings
+            pool = get_states_from_mdp(mdp=self._mdp, n_states=pool_size, core=core)
+            X_list = [pool[np.random.choice(pool_size, n_states, replace=True)] for _ in range(self._n_tilings)]
+
+        return X_list, X_test
 
     @staticmethod
     def _relative_mae(q_ref: np.ndarray, q_other: np.ndarray) -> float:
@@ -357,11 +385,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         """
         snapshot_eps = self._exploration_policy_param.get_value()
         self._configure_policy_exploration_behavior(Parameter(snapshot_eps))
-        n_states = self._agent_config.clustering_training_states_multiplier * self._n_tiles
-        X_list = [
-            get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core) for _ in range(self._n_tilings)
-        ]
-        X_test = get_states_from_mdp(mdp=self._mdp, n_states=n_states, core=self._core)
+        X_list, X_test = self._collect_training_states(core=self._core)
         self._configure_policy_exploration_behavior(self._exploration_policy_param)
 
         splithalf = (

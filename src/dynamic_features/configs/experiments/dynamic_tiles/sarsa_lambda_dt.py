@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 from dynamic_features.configs.experiments.experiment_conf import (
     AgentConfig,
@@ -50,6 +51,9 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
     # Consecutive over-threshold checks required before retraining (debounce).
     drift_patience: int
 
+    # None = original per-tiling collection.
+    clustering_pool_multiplier: Optional[int] = None
+
 
 @dataclass
 class SarsaLambdaDTConfig(ExperimentConfig):
@@ -91,6 +95,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             drift_threshold=1.1,
             drift_min_interval=5,
             drift_patience=2,
+            clustering_pool_multiplier=100,
             # Diagnostic only: at each retrain, refit two independent KMeans on independent
             # on-policy draws of the configured training size and compare their partitions
             # (split-half ARI). Isolates sampling noise from distribution drift; adds a second
