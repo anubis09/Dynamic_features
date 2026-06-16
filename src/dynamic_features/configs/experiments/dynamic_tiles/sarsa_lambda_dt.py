@@ -11,6 +11,11 @@ from dynamic_features.configs.experiments.experiment_conf import (
 )
 
 
+class RegularizationPrior(Enum):
+    NONE = None
+    OLDWEIGHTS = "old_weights"
+
+
 class RetrainTrigger(Enum):
     INTERVAL = "interval"
     DRIFT = "drift"
@@ -45,6 +50,7 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
     retrain_trigger: RetrainTrigger
     retrain_interval: int
     retrain_regularizer: float
+    regularization_prior: RegularizationPrior
     weight_transfer_states_multiplier: int
     splithalf_stability_check: bool
     # --- DRIFT trigger parameters (ignored when retrain_trigger is INTERVAL) ---
@@ -92,6 +98,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             retrain_trigger=RetrainTrigger.DRIFT,
             retrain_interval=10,
             retrain_regularizer=1e-3,
+            regularization_prior=RegularizationPrior.NONE,
             weight_transfer_states_multiplier=100,
             drift_threshold=1.1,
             drift_min_interval=5,

@@ -11,6 +11,7 @@ from typing_extensions import override
 from dynamic_features.configs import (
     EnvConfig,
     PolicyConfig,
+    RegularizationPrior,
     RetrainTrigger,
     SarsaLambdaDTAgentConfig,
     TrainingConfig,
@@ -215,7 +216,8 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         diag[diag < 1e-12] = 1e-12  # -> if < 1e-12 the multiplication could become zero -> singular matrix
         ridge_term = self._agent_config.retrain_regularizer * diag  # (n_features,)
         A += np.diag(ridge_term)
-        b += ridge_term.reshape(-1, 1) * old_weights.T  # this way this operation becomes (n_features, n_actions)
+        if self._agent_config.regularization_prior == RegularizationPrior.OLDWEIGHTS:
+            b += ridge_term.reshape(-1, 1) * old_weights.T  # this way this operation becomes (n_features, n_actions)
         new_weights = np.linalg.solve(a=A, b=b)  # (n_features, n_actions)
         new_weights = new_weights.T.flatten()
 

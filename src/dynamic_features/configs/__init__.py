@@ -16,6 +16,7 @@ from .experiments.baselines.rainbow import RainbowAgentConfig, RainbowConfig
 from .experiments.baselines.sarsa_lambda_rec import SarsaLambdaRecAgentConfig, SarsaLambdaRecConfig
 from .experiments.dynamic_tiles.sarsa_lambda_dt import (
     ApproximatorConfig,
+    RegularizationPrior,
     RetrainTrigger,
     SarsaLambdaDTAgentConfig,
     SarsaLambdaDTConfig,
@@ -78,6 +79,7 @@ __all__ = [
     "Losses",
     "Optimizers",
     "RetrainTrigger",
+    "RegularizationPrior",
     "PolicyConfig",
     "TAgentConfig",
     "TrainingConfig",
