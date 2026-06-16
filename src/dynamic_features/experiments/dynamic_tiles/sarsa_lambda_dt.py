@@ -64,7 +64,7 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         self._n_tilings: int = agent.n_tilings
         self._n_tiles: int = agent.n_clusters
         self._drift_reference: Optional[float] = None
-        self._last_retrain_epoch: int = 0
+        self._last_retrain_epoch: Optional[int] = None
         self._drift_trigger_count: int = 0
         super().__init__(policy=policy, agent=agent, train=train, env=env, wandb=wandb, seed=seed)
 
@@ -416,7 +416,10 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
         threshold = float(self._agent_config.drift_threshold)
         log: Dict = {"drift/ratio": float(drift), "drift/threshold": threshold}
 
-        cooled_down = epoch - self._last_retrain_epoch >= self._agent_config.drift_min_interval
+        cooled_down = (
+            self._last_retrain_epoch is None
+            or epoch - self._last_retrain_epoch >= self._agent_config.drift_min_interval
+        )
         if drift > threshold and cooled_down:
             self._drift_trigger_count += 1
         else:

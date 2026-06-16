@@ -101,8 +101,8 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             regularization_prior=RegularizationPrior.NONE,
             weight_transfer_states_multiplier=100,
             drift_threshold=1.1,
-            drift_min_interval=5,
-            drift_patience=2,
+            drift_min_interval=1,
+            drift_patience=3,
             # Diagnostic only: at each retrain, refit two independent KMeans on independent
             # on-policy draws of the configured training size and compare their partitions
             # (split-half ARI). Isolates sampling noise from distribution drift; adds a second
