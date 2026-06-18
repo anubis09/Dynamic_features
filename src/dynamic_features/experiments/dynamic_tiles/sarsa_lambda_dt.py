@@ -371,6 +371,21 @@ class SarsaLambdaDTExperiment(AbstractExp[SarsaLambdaDTAgentConfig]):
             if self._agent_config.splithalf_stability_check
             else {}
         )
+
+        # Mix a fixed 10% of the last greedy-eval states into each new KMeans training list so
+        # the refit centroids stay anchored to recent on-policy states. Done after the
+        # split-half check so that diagnostic keeps seeing a single frozen-policy collection.
+        if self._last_eval_states is not None:
+            k = min(int(0.1 * n_states), len(self._last_eval_states))
+            if k > 0:
+                X_list = [
+                    np.concatenate(
+                        [X, self._last_eval_states[np.random.choice(len(self._last_eval_states), k, replace=False)]],
+                        axis=0,
+                    )
+                    for X in X_list
+                ]
+
         metrics = self._naive_weight_transfer(X_list=X_list, X_test=X_test)
         metrics.update(splithalf)
 
