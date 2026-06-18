@@ -98,7 +98,7 @@ class SarsaLambdaDTConfig(ExperimentConfig):
             retrain_trigger=RetrainTrigger.DRIFT,
             retrain_interval=10,
             retrain_regularizer=1e-3,
-            regularization_prior=RegularizationPrior.NONE,
+            regularization_prior=RegularizationPrior.OLDWEIGHTS,
             weight_transfer_states_multiplier=100,
             drift_threshold=1.1,
             drift_min_interval=1,

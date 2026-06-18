@@ -21,7 +21,7 @@ wandb sync --include-offline --sync-all path/to/wandb
 ## Hyperparameter Grid Search in practice
 ### DQN
 ```bash
-python launcher.py --multirun seed=0,1,2 \
+python launcher.py --multirun seed=0,1,2,3 \
 environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
 algorithm=dqn \
 algorithm.policy.final_exp_frame=15_000,30_000 \
@@ -34,7 +34,7 @@ wandb_log=True wandb.job_type="DQN_sweep"
 
 ### Rainbow
 ```bash
-python launcher.py --multirun seed=0,1,2 \
+python launcher.py --multirun seed=0,1,2,3 \
 environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
 algorithm=rainbow \
 algorithm.policy.final_exp_frame=15_000,30_000 \
@@ -47,7 +47,7 @@ wandb_log=True wandb.job_type="Rainbow_sweep"
 
 ### Sarsa Lambda with Rec Tiles
 ```bash
-python launcher.py --multirun seed=0,1,2 \
+python launcher.py --multirun seed=0,1,2,3 \
 environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
 algorithm=sarsa_lambda_rec \
 algorithm.policy.final_exp_frame=15_000,30_000 \
@@ -59,12 +59,12 @@ wandb_log=True wandb.job_type="sarsa_lambda_rec_sweep"
 
 ### Sarsa Lambda with Dynamic Tiles
 ```bash
-python launcher.py --multirun seed=0,1,2 \
+python launcher.py --multirun seed=0,1,2,3 \
 environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
 algorithm=sarsa_lambda_dt \
 algorithm.policy.final_exp_frame=15_000,30_000 \
-algorithm.agent.n_tilings=8,16,32 \
-algorithm.agent.n_clusters=16,24 \
+algorithm.agent.n_tilings=24,32 \
+algorithm.agent.n_clusters=32,48,64 \
 algorithm.agent.lambda_coeff=0.5,0.75,0.9,0.99 \
 wandb_log=True wandb.job_type="sarsa_lambda_dt_plain_sweep"
 ```
