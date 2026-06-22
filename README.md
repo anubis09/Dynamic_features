@@ -19,6 +19,15 @@ wandb sync --include-offline --sync-all path/to/wandb
 ```
 
 ## Hyperparameter Grid Search in practice
+
+### Random
+```bash
+python launcher.py --multirun seed=0,1,2,3 \
+environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole \
+algorithm=random \
+wandb_log=True wandb.job_type="random_sweep"
+```
+
 ### DQN
 ```bash
 python launcher.py --multirun seed=0,1,2,3 \
