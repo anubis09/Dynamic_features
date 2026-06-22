@@ -13,6 +13,7 @@ from .env_config import (
 )
 from .experiments.baselines.dqn import DqnAgentConfig, DqnConfig
 from .experiments.baselines.rainbow import RainbowAgentConfig, RainbowConfig
+from .experiments.baselines.random_agent import RandomAgentConfig, RandomConfig
 from .experiments.baselines.sarsa_lambda_rec import SarsaLambdaRecAgentConfig, SarsaLambdaRecConfig
 from .experiments.dynamic_tiles.sarsa_lambda_dt import (
     ApproximatorConfig,
@@ -50,6 +51,7 @@ def register_configs():
     cs.store(name="rainbow", group="algorithm", node=RainbowConfig)
     cs.store(name="sarsa_lambda_rec", group="algorithm", node=SarsaLambdaRecConfig)
     cs.store(name="sarsa_lambda_dt", group="algorithm", node=SarsaLambdaDTConfig)
+    cs.store(name="random", group="algorithm", node=RandomConfig)
 
     cs.store(name="config", node=Config)
 
@@ -75,6 +77,8 @@ __all__ = [
     "ApproximatorConfig",
     "RainbowConfig",
     "RainbowAgentConfig",
+    "RandomConfig",
+    "RandomAgentConfig",
     "ExperimentConfig",
     "Losses",
     "Optimizers",
