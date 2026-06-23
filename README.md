@@ -75,5 +75,5 @@ algorithm.policy.final_exp_frame=15_000,30_000 \
 algorithm.agent.n_tilings=24,32 \
 algorithm.agent.n_clusters=32,48,64 \
 algorithm.agent.lambda_coeff=0.5,0.75,0.9,0.99 \
-wandb_log=True wandb.job_type="sarsa_lambda_dt_plain_sweep"
+wandb_log=True wandb.job_type="sarsa_lambda_dt_retr_sweep"
 ```
