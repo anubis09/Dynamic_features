@@ -20,14 +20,14 @@ class SarsaLambdaRecAgentConfig(AgentConfig):
 class SarsaLambdaRecConfig(ExperimentConfig):
     _target_: str = "dynamic_features.experiments.SarsaLambdaRecExperiment"
     policy: PolicyConfig = field(
-        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=15_000)
+        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=30_000)
     )
     agent: SarsaLambdaRecAgentConfig = field(
         default_factory=lambda: SarsaLambdaRecAgentConfig(
             n_tilings=32,
             # n_tiles = 5 means that in each dimension of the mdp it will have 5.
             # so if mdp state dimension is 2 we will have a 5x5 grid.
-            n_tiles=4,
+            n_tiles=8,
             hash_size=131_072,
             lambda_coeff=0.9,
             # in this case we mean the learning_rate pre scaling.

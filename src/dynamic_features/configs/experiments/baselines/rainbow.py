@@ -34,8 +34,8 @@ class RainbowConfig(ExperimentConfig):
     agent: RainbowAgentConfig = field(
         default_factory=lambda: RainbowAgentConfig(
             initial_replay_size=10_000,
-            max_replay_size=50_000,
-            target_update_frequency=500,
+            max_replay_size=100_000,
+            target_update_frequency=2_000,
             n_atoms=51,
             n_steps_returns=3,
             alpha_coeff=0.6,
@@ -43,10 +43,10 @@ class RainbowConfig(ExperimentConfig):
             beta_starting=0.4,
             beta_final=1.0,
             # beta frame is usually max_steps // train frequency
-            batch_size=128,
+            batch_size=64,
             n_features=128,
             optimizer=Optimizers.ADAM,
-            learning_rate=1e-4,
+            learning_rate=5e-4,
         )
     )
     train: TrainingConfig = field(
