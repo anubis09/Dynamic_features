@@ -32,11 +32,11 @@ class DqnConfig(ExperimentConfig):
             initial_replay_size=10_000,
             max_replay_size=50_000,
             target_update_frequency=500,
-            batch_size=64,
+            batch_size=128,
             n_features=128,
             loss=Losses.HUBER,
             optimizer=Optimizers.ADAM,
-            learning_rate=5e-4,
+            learning_rate=1e-4,
         )
     )
     train: TrainingConfig = field(

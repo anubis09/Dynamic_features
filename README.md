@@ -77,3 +77,40 @@ algorithm.agent.n_clusters=32,48,64 \
 algorithm.agent.lambda_coeff=0.5,0.75,0.9,0.99 \
 wandb_log=True wandb.job_type="sarsa_lambda_dt_retr_sweep"
 ```
+
+## Final runs commands
+
+### DQN
+```bash
+uv run python launcher.py --multirun seed=$(seq 100 149 | paste -sd, -) environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole
+algorithm=dqn
+wandb_log=True wandb.job_type="DQN_final_v2"
+```
+
+### Rainbow
+```bash
+uv run python launcher.py --multirun seed=$(seq 100 149 | paste -sd, -) environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole
+algorithm=rainbow
+wandb_log=True wandb.job_type="rainbow_final_v2"
+```
+
+### Sarsa Lambda with Rec Tiles
+```bash
+uv run python launcher.py --multirun seed=$(seq 100 149 | paste -sd, -) environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole
+algorithm=sarsa_lambda_rec
+wandb_log=True wandb.job_type="sarsa_lambda_rec_final_v2"
+```
+
+### Sarsa Lambda DT no retr
+```bash
+uv run python launcher.py --multirun seed=$(seq 100 149 | paste -sd, -) environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole
+algorithm=sarsa_lambda_dt algorithm.agent.retrain_features=False
+wandb_log=True wandb.job_type="sl_dt_noretr_final_v2"
+```
+
+### Sarsa Lambda DT
+```bash
+uv run python launcher.py --multirun seed=$(seq 100 149 | paste -sd, -) environment=Acrobot,PuddleWorld,MountainCar,LunarLander,CartPole
+algorithm=sarsa_lambda_dt
+wandb_log=True wandb.job_type="sarsa_lambda_dt_final_v2"
+```

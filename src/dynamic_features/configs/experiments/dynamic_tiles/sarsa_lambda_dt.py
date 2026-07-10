@@ -66,13 +66,13 @@ class SarsaLambdaDTAgentConfig(AgentConfig):
 class SarsaLambdaDTConfig(ExperimentConfig):
     _target_: str = "dynamic_features.experiments.SarsaLambdaDTExperiment"
     policy: PolicyConfig = field(
-        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=15_000)
+        default_factory=lambda: PolicyConfig(initial_exp_rate=1.0, final_exp_rate=0.01, final_exp_frame=30_000)
     )
     agent: SarsaLambdaDTAgentConfig = field(
         default_factory=lambda: SarsaLambdaDTAgentConfig(
             n_tilings=32,
             n_clusters=64,
-            lambda_coeff=0.75,
+            lambda_coeff=0.9,
             # Scales the number of states sampled to train the clustering features.
             # Total training states = n_clusters * clustering_training_states_multiplier.
             clustering_training_states_multiplier=200,
