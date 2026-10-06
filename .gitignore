@@ -8,3 +8,8 @@ outputs*
 *.DS_Store
 *multirun
 .zed/
+.venv/
+.benchmarks/
+*.egg-info/
+dist/
+build/

@@ -6,6 +6,7 @@ build-backend = "uv_build"
 name = "dynamic_features"
 version = "0.1.0"
 description = "Thesis on automatic feature selection for classical RL algorithms"
+authors = [{ name = "Lorenzo Tozzi" }]
 readme = "README.md"
 requires-python = "~=3.8.0"
 dependencies = [
