@@ -183,7 +183,7 @@ class ClusteringFeatures:
 
         X_scaled = self._normalize(X)
         X_train, X_eval, y_train, y_eval = train_test_split(
-            X_scaled, y, test_size=self._approximator_config.eval_size, random_state=42
+            X_scaled, y, test_size=self._approximator_config.eval_size, random_state=self._seed
         )
 
         train_ds = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
